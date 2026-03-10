@@ -1,0 +1,2635 @@
+<!DOCTYPE html>
+<html lang="cy">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NoteBack — Adborth Cerddoriaeth</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0d10;
+    --surface: #13141a;
+    --surface2: #1a1b23;
+    --border: #2a2b35;
+    --border2: #363744;
+    --text: #f0f0f5;
+    --text-muted: #7a7b8e;
+    --text-dim: #4a4b5e;
+    --accent: #f0b429;
+    --accent2: #e09000;
+    --blue: #4d8eff;
+    --green: #3ecf8e;
+    --red: #ff4d6d;
+    --purple: #9f7aea;
+    --pink: #f687b3;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ─── LOADING ─── */
+  #app-loading {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 16px; z-index: 9999;
+  }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--border2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ─── SCREENS ─── */
+  .screen { display: none; min-height: 100vh; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  /* ─── AUTH SCREEN ─── */
+  #screen-auth {
+    align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at 30% 20%, rgba(240,180,41,0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 70% 80%, rgba(77,142,255,0.06) 0%, transparent 60%),
+                var(--bg);
+  }
+
+  .auth-card {
+    width: 100%; max-width: 420px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px 40px;
+    text-align: center;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.5);
+  }
+
+  .auth-logo {
+    width: 64px; height: 64px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; margin: 0 auto 24px;
+    box-shadow: 0 8px 24px rgba(240,180,41,0.3);
+  }
+
+  .auth-title {
+    font-family: 'Instrument Serif', serif;
+    font-size: 32px; font-weight: 400;
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+
+  .auth-subtitle {
+    color: var(--text-muted);
+    font-size: 14px;
+    margin-bottom: 40px;
+    line-height: 1.6;
+  }
+
+  .btn-google {
+    width: 100%;
+    background: white;
+    color: #1a1a2e;
+    border: none;
+    border-radius: var(--radius);
+    padding: 14px 20px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    transition: all 0.2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .btn-google:hover { background: #f0f0f0; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+
+  .auth-lang-toggle {
+    display: flex; gap: 8px; justify-content: center;
+    margin-top: 32px;
+  }
+  .lang-btn {
+    background: none; border: 1px solid var(--border);
+    color: var(--text-muted); padding: 6px 16px;
+    border-radius: 20px; cursor: pointer; font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+  }
+  .lang-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(240,180,41,0.1); }
+
+  /* ─── SETUP SCREEN ─── */
+  #screen-setup {
+    align-items: center; justify-content: center;
+    background: var(--bg);
+  }
+
+  .setup-card {
+    width: 100%; max-width: 480px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px 40px;
+  }
+
+  .setup-title {
+    font-family: 'Instrument Serif', serif;
+    font-size: 26px; margin-bottom: 8px;
+  }
+  .setup-subtitle { color: var(--text-muted); margin-bottom: 32px; }
+
+  .role-cards {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .role-card {
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 16px;
+    cursor: pointer; text-align: center;
+    transition: all 0.2s;
+    background: var(--surface2);
+  }
+  .role-card:hover { border-color: var(--border2); }
+  .role-card.selected { border-color: var(--accent); background: rgba(240,180,41,0.08); }
+  .role-card .role-icon { font-size: 28px; margin-bottom: 8px; }
+  .role-card .role-name { font-weight: 600; font-size: 15px; }
+  .role-card .role-desc { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+  /* ─── MAIN APP ─── */
+  #screen-app { flex-direction: row; }
+
+  /* ─── SIDEBAR ─── */
+  .sidebar {
+    width: 260px; min-width: 260px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    height: 100vh; position: sticky; top: 0;
+    overflow-y: auto;
+  }
+
+  .sidebar-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+
+  .sidebar-logo {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
+  }
+
+  .sidebar-brand { font-family: 'Instrument Serif', serif; font-size: 20px; }
+  .sidebar-tagline { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .sidebar-user {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .user-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--surface2); overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; color: var(--accent);
+    flex-shrink: 0;
+  }
+  .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .user-name { font-size: 13px; font-weight: 500; }
+  .user-role { font-size: 11px; color: var(--text-muted); }
+
+  .sidebar-nav { padding: 12px 12px; flex: 1; }
+
+  .nav-section { margin-bottom: 20px; }
+  .nav-section-title {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--text-dim); padding: 0 8px; margin-bottom: 6px;
+  }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px; border-radius: var(--radius-sm);
+    cursor: pointer; color: var(--text-muted);
+    font-size: 13px; font-weight: 500;
+    transition: all 0.15s; border: none; background: none;
+    width: 100%; text-align: left;
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: rgba(240,180,41,0.12); color: var(--accent); }
+  .nav-item .nav-icon { font-size: 15px; width: 20px; text-align: center; }
+
+  .class-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; border-radius: var(--radius-sm);
+    cursor: pointer; font-size: 13px;
+    transition: all 0.15s; color: var(--text-muted);
+    border: none; background: none; width: 100%; text-align: left;
+  }
+  .class-item:hover { background: var(--surface2); color: var(--text); }
+  .class-item.active { background: var(--surface2); color: var(--text); }
+  .class-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent); flex-shrink: 0;
+  }
+
+  .sidebar-bottom {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+    display: flex; gap: 4px;
+  }
+
+  .lang-toggle-small {
+    display: flex; background: var(--surface2); border-radius: 8px; padding: 3px;
+    flex: 1;
+  }
+  .lang-opt {
+    flex: 1; padding: 5px; border: none; background: none;
+    color: var(--text-muted); font-size: 11px; cursor: pointer;
+    border-radius: 6px; font-family: 'DM Sans', sans-serif;
+    transition: all 0.15s;
+  }
+  .lang-opt.active { background: var(--border2); color: var(--text); }
+
+  .btn-signout {
+    padding: 8px 10px; border: none; background: none;
+    color: var(--text-dim); cursor: pointer; border-radius: 8px;
+    font-size: 16px; transition: all 0.15s;
+  }
+  .btn-signout:hover { background: var(--surface2); color: var(--red); }
+
+  /* ─── MAIN CONTENT ─── */
+  .main-content { flex: 1; overflow-y: auto; height: 100vh; }
+
+  /* ─── PANELS ─── */
+  .panel { display: none; padding: 32px; max-width: 900px; }
+  .panel.active { display: block; }
+
+  .panel-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 28px; gap: 16px;
+  }
+
+  .panel-title {
+    font-family: 'Instrument Serif', serif;
+    font-size: 28px; font-weight: 400; letter-spacing: -0.3px;
+  }
+  .panel-subtitle { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+
+  /* ─── BUTTONS ─── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px; border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    border: none; font-family: 'DM Sans', sans-serif;
+    transition: all 0.15s; text-decoration: none;
+  }
+  .btn-primary { background: var(--accent); color: #0c0d10; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--border2); background: var(--border); }
+  .btn-danger { background: rgba(255,77,109,0.15); color: var(--red); border: 1px solid rgba(255,77,109,0.2); }
+  .btn-sm { padding: 7px 12px; font-size: 12px; }
+
+  /* ─── FORM ELEMENTS ─── */
+  .form-group { margin-bottom: 20px; }
+  .form-label { display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-input {
+    width: 100%; padding: 11px 14px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text);
+    font-size: 14px; font-family: 'DM Sans', sans-serif;
+    transition: border-color 0.15s;
+  }
+  .form-input:focus { outline: none; border-color: var(--accent); }
+  .form-input::placeholder { color: var(--text-dim); }
+  textarea.form-input { resize: vertical; min-height: 80px; }
+
+  /* ─── CARDS ─── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+
+  .class-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    cursor: pointer; transition: all 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .class-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--blue));
+  }
+  .class-card:hover { border-color: var(--border2); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+  .class-card-name { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .class-card-meta { font-size: 12px; color: var(--text-muted); }
+  .class-card-code { 
+    margin-top: 14px; padding: 8px 12px;
+    background: var(--surface2); border-radius: 8px;
+    font-size: 12px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .invite-code { font-family: monospace; font-size: 16px; letter-spacing: 2px; color: var(--accent); font-weight: 700; }
+
+  /* ─── CLASS DETAIL ─── */
+  .class-detail { display: none; }
+  .class-detail.active { display: block; }
+
+  .back-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--text-muted); font-size: 13px; cursor: pointer;
+    background: none; border: none; font-family: 'DM Sans', sans-serif;
+    margin-bottom: 20px; padding: 0; transition: color 0.15s;
+  }
+  .back-btn:hover { color: var(--text); }
+
+  /* ─── STUDENTS TABLE ─── */
+  .students-table { width: 100%; border-collapse: collapse; }
+  .students-table th {
+    text-align: left; padding: 10px 16px;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--text-dim); border-bottom: 1px solid var(--border);
+  }
+  .students-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .students-table tr:last-child td { border-bottom: none; }
+  .students-table tr:hover td { background: var(--surface2); }
+
+  /* ─── VIDEO LIST ─── */
+  .video-item {
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer; transition: background 0.15s;
+  }
+  .video-item:last-child { border-bottom: none; }
+  .video-item:hover { background: var(--surface2); }
+  .video-thumb {
+    width: 56px; height: 40px; border-radius: 6px;
+    background: var(--surface2); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .video-info { flex: 1; }
+  .video-title { font-size: 14px; font-weight: 500; }
+  .video-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .video-badge {
+    padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;
+    background: rgba(77,142,255,0.15); color: var(--blue);
+  }
+
+  /* ─── VIDEO PLAYER ─── */
+  #panel-player {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: var(--bg);
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  .player-topbar {
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  .player-layout {
+    display: flex; flex: 1; overflow: hidden;
+  }
+
+  .video-col {
+    flex: 1; display: flex; flex-direction: column;
+    background: #000; position: relative;
+  }
+
+  #video-el {
+    flex: 1; width: 100%; object-fit: contain;
+    max-height: calc(100vh - 180px);
+  }
+
+  .video-controls {
+    background: var(--surface); border-top: 1px solid var(--border);
+    padding: 10px 16px; flex-shrink: 0;
+  }
+
+  .timeline-wrap { position: relative; margin-bottom: 10px; height: 20px; display: flex; align-items: center; }
+  #timeline {
+    width: 100%; height: 4px; cursor: pointer;
+    accent-color: var(--accent); appearance: none;
+    background: var(--border2); border-radius: 2px;
+    position: relative; z-index: 1;
+  }
+  #timeline::-webkit-slider-thumb {
+    appearance: none; width: 14px; height: 14px;
+    border-radius: 50%; background: var(--accent); cursor: pointer;
+  }
+
+  .markers-layer {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+  }
+  .tmarker {
+    position: absolute; top: 50%; transform: translate(-50%, -50%);
+    width: 12px; height: 12px; border-radius: 50%;
+    cursor: pointer; pointer-events: all;
+    border: 2px solid var(--bg);
+    transition: transform 0.15s;
+    z-index: 2;
+  }
+  .tmarker:hover { transform: translate(-50%, -50%) scale(1.4); }
+  .tmarker.cat-Rhythm, .tmarker.cat-Curiad { background: var(--blue); }
+  .tmarker.cat-Pitch, .tmarker.cat-Traw { background: var(--green); }
+  .tmarker.cat-Expression, .tmarker.cat-Mynegiant { background: var(--purple); }
+  .tmarker.cat-Technique, .tmarker.cat-Techneg { background: var(--accent); }
+  .tmarker.cat-Ensemble { background: var(--pink); }
+  .tmarker.cat-General, .tmarker.cat-Cyffredinol { background: var(--text-muted); }
+
+  .c-card-highlight {
+    border-color: var(--accent) !important;
+    background: rgba(240,180,41,0.08) !important;
+    transition: border-color 0.2s, background 0.2s;
+  }
+
+  .ctrl-row {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .ctrl-btn {
+    background: none; border: none; color: var(--text);
+    font-size: 16px; cursor: pointer; padding: 4px 6px;
+    border-radius: 6px; transition: background 0.15s;
+  }
+  .ctrl-btn:hover { background: var(--surface2); }
+  .time-disp { font-size: 12px; color: var(--text-muted); font-family: monospace; }
+  .rate-btn {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); font-size: 11px; padding: 3px 8px;
+    border-radius: 6px; cursor: pointer; font-family: 'DM Sans', sans-serif;
+  }
+
+  .comment-btn {
+    margin-left: auto;
+    background: var(--accent); color: #0c0d10;
+    border: none; padding: 7px 14px; border-radius: 8px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; display: flex; align-items: center; gap: 6px;
+    transition: background 0.15s;
+  }
+  .comment-btn:hover { background: var(--accent2); }
+
+  /* ─── COMMENTS SIDEBAR ─── */
+  .comments-col {
+    width: 320px; min-width: 320px;
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    background: var(--surface);
+  }
+
+  .comments-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .comments-title { font-size: 13px; font-weight: 600; }
+  .comments-count {
+    background: var(--accent); color: #0c0d10;
+    font-size: 11px; font-weight: 700;
+    padding: 2px 8px; border-radius: 10px;
+  }
+
+  .comments-list { flex: 1; overflow-y: auto; padding: 8px; }
+
+  .c-card {
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 6px;
+    cursor: pointer; transition: background 0.15s;
+    border: 1px solid transparent;
+  }
+  .c-card:hover { background: var(--surface2); }
+  .c-card.active-card { background: var(--surface2); border-color: var(--border); }
+
+  .c-card-top {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+  }
+  .c-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .c-time {
+    font-size: 11px; font-family: monospace;
+    background: var(--surface2); padding: 2px 7px;
+    border-radius: 4px; color: var(--text-muted);
+  }
+  .c-author { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+  .c-role-badge {
+    font-size: 10px; padding: 2px 7px; border-radius: 10px;
+  }
+  .c-role-badge.teacher { background: rgba(240,180,41,0.15); color: var(--accent); }
+  .c-role-badge.student { background: rgba(77,142,255,0.15); color: var(--blue); }
+  .c-text { font-size: 13px; line-height: 1.5; }
+  .c-delete {
+    background: none; border: none; color: var(--text-dim);
+    cursor: pointer; font-size: 14px; padding: 2px; float: right;
+    transition: color 0.15s;
+  }
+  .c-delete:hover { color: var(--red); }
+
+  .empty-comments {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 200px; color: var(--text-dim); text-align: center; gap: 8px;
+  }
+  .empty-comments .empty-icon { font-size: 32px; }
+  .empty-comments p { font-size: 12px; line-height: 1.6; max-width: 200px; }
+
+  /* ─── LEGEND ─── */
+  .cat-legend {
+    padding: 8px 16px;
+    border-top: 1px solid var(--border);
+    display: flex; flex-wrap: wrap; gap: 10px;
+    flex-shrink: 0;
+  }
+  .legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); }
+  .legend-dot { width: 7px; height: 7px; border-radius: 50%; }
+
+  /* ─── POPUP ─── */
+  .popup-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; opacity: 0; pointer-events: none;
+    transition: opacity 0.2s; backdrop-filter: blur(4px);
+  }
+  .popup-overlay.show { opacity: 1; pointer-events: all; }
+
+  .popup {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    width: 100%; max-width: 480px;
+    padding: 28px;
+    transform: translateY(10px);
+    transition: transform 0.2s;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.5);
+  }
+  .popup-overlay.show .popup { transform: translateY(0); }
+
+  .popup-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .popup-ts { font-size: 12px; color: var(--text-muted); margin-bottom: 20px; }
+
+  .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+  .cat-btn {
+    padding: 9px 8px; border-radius: 8px;
+    border: 2px solid var(--border);
+    background: var(--surface2); color: var(--text-muted);
+    font-size: 12px; cursor: pointer; text-align: center;
+    font-family: 'DM Sans', sans-serif; transition: all 0.15s;
+  }
+  .cat-btn:hover { border-color: var(--border2); color: var(--text); }
+  .cat-btn.selected { color: var(--text); }
+
+  .popup-actions { display: flex; gap: 10px; margin-top: 16px; }
+
+  /* ─── MODAL ─── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 2000; opacity: 0; pointer-events: none;
+    transition: opacity 0.2s; backdrop-filter: blur(4px);
+  }
+  .modal-overlay.show { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    width: 100%; max-width: 480px;
+    padding: 28px;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.5);
+  }
+  .modal-title { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .modal-subtitle { color: var(--text-muted); font-size: 13px; margin-bottom: 24px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 24px; justify-content: flex-end; }
+
+  /* ─── TOAST ─── */
+  #toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 10px 20px; border-radius: 20px;
+    font-size: 13px; z-index: 9999;
+    transition: transform 0.3s; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    white-space: nowrap;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ─── JOIN CLASS (student) ─── */
+  .join-box {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px;
+    margin-bottom: 24px;
+  }
+  .join-box-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+  .join-row { display: flex; gap: 10px; }
+
+  /* ─── EMPTY STATES ─── */
+  .empty-state {
+    text-align: center; padding: 60px 20px;
+    color: var(--text-muted);
+  }
+  .empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-state h3 { font-size: 18px; font-weight: 500; margin-bottom: 8px; color: var(--text); }
+  .empty-state p { font-size: 13px; line-height: 1.6; max-width: 320px; margin: 0 auto; }
+
+  /* ─── BADGE ─── */
+  .badge {
+    display: inline-block; padding: 3px 10px;
+    border-radius: 20px; font-size: 11px; font-weight: 500;
+  }
+  .badge-green { background: rgba(62,207,142,0.15); color: var(--green); }
+  .badge-blue { background: rgba(77,142,255,0.15); color: var(--blue); }
+  .badge-yellow { background: rgba(240,180,41,0.15); color: var(--accent); }
+
+  /* ─── DIVIDER ─── */
+  .divider { height: 1px; background: var(--border); margin: 24px 0; }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 768px) {
+    .sidebar { width: 220px; min-width: 220px; }
+    .comments-col { width: 280px; min-width: 280px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="app-loading">
+  <div class="spinner"></div>
+  <div style="color:var(--text-muted);font-size:13px" id="loading-msg">Llwytho…</div>
+</div>
+
+<!-- Auth Screen -->
+<div class="screen" id="screen-auth">
+  <div class="auth-card">
+    <div class="auth-logo">🎵</div>
+    <div class="auth-title" id="auth-title">Croeso i NoteBack</div>
+    <div class="auth-subtitle" id="auth-subtitle">Mewngofnodwch â'ch cyfrif Google ysgol i ddechrau.</div>
+    <button class="btn-google" onclick="signInWithGoogle()">
+      <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      <span id="auth-btn-text">Mewngofnodi gyda Google</span>
+    </button>
+    <div class="auth-lang-toggle">
+      <button class="lang-btn active" onclick="setAuthLang('cy')" id="auth-lang-cy">🏴󠁧󠁢󠁷󠁬󠁳󠁢 Cymraeg</button>
+      <button class="lang-btn" onclick="setAuthLang('en')" id="auth-lang-en">🏴󠁧󠁢󠁥󠁮󠁧󠁿 English</button>
+    </div>
+  </div>
+</div>
+
+<!-- Setup Screen -->
+<div class="screen" id="screen-setup">
+  <div class="setup-card">
+    <div class="setup-title" id="setup-title">Croeso! Beth yw eich rôl?</div>
+    <div class="setup-subtitle" id="setup-subtitle">Dewiswch eich rôl i bersonoli eich profiad.</div>
+    <div class="role-cards">
+      <div class="role-card" id="role-teacher" onclick="selectRole('teacher')">
+        <div class="role-icon">👩‍🏫</div>
+        <div class="role-name" id="role-teacher-name">Athro/Athrawes</div>
+        <div class="role-desc" id="role-teacher-desc">Creu dosbarthiadau, ychwanegu fideos, rhoi adborth</div>
+      </div>
+      <div class="role-card" id="role-student" onclick="selectRole('student')">
+        <div class="role-icon">🎓</div>
+        <div class="role-name" id="role-student-name">Disgybl</div>
+        <div class="role-desc" id="role-student-desc">Ymuno â dosbarth, gweld adborth, ymateb</div>
+      </div>
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="saveRole()" id="setup-save-btn">Cadw a Pharhau →</button>
+  </div>
+</div>
+
+<!-- Main App -->
+<div class="screen" id="screen-app">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">🎵</div>
+      <div>
+        <div class="sidebar-brand">NoteBack</div>
+        <div class="sidebar-tagline" id="sb-tagline">Adborth Cerddoriaeth</div>
+      </div>
+    </div>
+
+    <div class="sidebar-user">
+      <div class="user-avatar" id="sb-avatar">?</div>
+      <div>
+        <div class="user-name" id="sb-name">—</div>
+        <div class="user-role" id="sb-role">—</div>
+      </div>
+    </div>
+
+    <div class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title" id="sb-overview-label">Trosolwg</div>
+        <button class="nav-item active" id="nav-home" onclick="showPanel('home')">
+          <span class="nav-icon">🏠</span>
+          <span id="nav-home-text">Hafan</span>
+        </button>
+      </div>
+
+      <div class="nav-section" id="admin-nav-section" style="display:none">
+        <div class="nav-section-title">Admin</div>
+        <button class="nav-item" id="nav-admin" onclick="showPanel('admin')">
+          <span class="nav-icon">⚙️</span>
+          <span id="nav-admin-text">Admin Panel</span>
+        </button>
+      </div>
+
+      <div class="nav-section" id="classes-nav-section">
+        <div class="nav-section-title" id="sb-classes-label">Dosbarthiadau</div>
+        <div id="classes-nav-list"></div>
+        <button class="nav-item" id="nav-new-class" onclick="openNewClassModal()" style="display:none">
+          <span class="nav-icon">➕</span>
+          <span id="nav-new-class-text">Dosbarth Newydd</span>
+        </button>
+        <button class="nav-item" id="nav-join-class" onclick="showPanel('join')" style="display:none">
+          <span class="nav-icon">🔗</span>
+          <span id="nav-join-text">Ymuno â Dosbarth</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="sidebar-bottom">
+      <div class="lang-toggle-small">
+        <button class="lang-opt active" id="lang-cy" onclick="setLang('cy')">🏴󠁧󠁢󠁷󠁬󠁳󠁢 CY</button>
+        <button class="lang-opt" id="lang-en" onclick="setLang('en')">🏴󠁧󠁢󠁥󠁮󠁧󠁿 EN</button>
+      </div>
+      <button class="btn-signout" onclick="signOut()" title="Allgofnodi">↩</button>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+
+    <!-- Home Panel -->
+    <div class="panel active" id="panel-home">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title" id="home-title">Hafan</div>
+          <div class="panel-subtitle" id="home-subtitle">Croeso yn ôl</div>
+        </div>
+      </div>
+      <div id="home-content"></div>
+    </div>
+
+    <!-- Classes Panel -->
+    <div class="panel" id="panel-classes">
+      <div id="classes-list-view">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title" id="classes-title">Dosbarthiadau</div>
+            <div class="panel-subtitle" id="classes-subtitle">Rheoli eich dosbarthiadau</div>
+          </div>
+          <button class="btn btn-primary" onclick="openNewClassModal()" id="new-class-btn">
+            ➕ <span id="new-class-btn-text">Dosbarth Newydd</span>
+          </button>
+        </div>
+        <div class="card-grid" id="classes-grid"></div>
+      </div>
+
+      <!-- Class Detail View -->
+      <div id="class-detail-view" style="display:none">
+        <button class="back-btn" onclick="showClassList()">← <span id="back-to-classes">Yn ôl i'r Dosbarthiadau</span></button>
+        <div class="panel-header">
+          <div>
+            <div class="panel-title" id="detail-class-name">—</div>
+            <div class="panel-subtitle" id="detail-class-meta">—</div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-secondary btn-sm" onclick="openAddVideoModal()" id="add-video-btn">
+              🎬 <span id="add-video-btn-text">Ychwanegu Fideo</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Invite code -->
+        <div class="card" style="padding:16px;margin-bottom:20px;display:flex;align-items:center;gap:16px" id="invite-code-bar">
+          <div>
+            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px" id="invite-label">Cod Gwahoddiad</div>
+            <div class="invite-code" id="detail-invite-code">——</div>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);flex:1" id="invite-hint">Rhowch y cod hwn i'ch disgyblion i ymuno â'r dosbarth.</div>
+          <button class="btn btn-secondary btn-sm" onclick="copyInviteCode()">📋 <span id="copy-btn-text">Copïo</span></button>
+        </div>
+
+        <!-- Tabs -->
+        <div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:0">
+          <button class="tab-btn active" id="tab-videos" onclick="switchTab('videos')" style="background:none;border:none;padding:10px 16px;color:var(--accent);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;border-bottom:2px solid var(--accent);margin-bottom:-1px">
+            <span id="tab-videos-text">🎬 Fideos</span>
+          </button>
+          <button class="tab-btn" id="tab-groups" onclick="switchTab('groups')" style="background:none;border:none;padding:10px 16px;color:var(--text-muted);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px">
+            <span id="tab-groups-text">🎸 Grwpiau</span>
+          </button>
+          <button class="tab-btn" id="tab-students" onclick="switchTab('students')" style="background:none;border:none;padding:10px 16px;color:var(--text-muted);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px">
+            <span id="tab-students-text">👥 Disgyblion</span>
+          </button>
+        </div>
+
+        <!-- Videos tab -->
+        <div id="tab-content-videos">
+          <div class="card" id="videos-list">
+            <div class="empty-state" id="videos-empty" style="display:none">
+              <div class="empty-icon">🎬</div>
+              <h3 id="videos-empty-title">Dim fideos eto</h3>
+              <p id="videos-empty-text">Ychwanegwch fideo cyntaf y dosbarth hwn.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Groups tab -->
+        <div id="tab-content-groups" style="display:none">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+            <button class="btn btn-primary btn-sm" onclick="openNewGroupModal()" id="new-group-btn">
+              ➕ <span id="new-group-btn-text">Grŵp Newydd</span>
+            </button>
+          </div>
+          <div class="card-grid" id="groups-grid"></div>
+        </div>
+
+        <!-- Students tab -->
+        <div id="tab-content-students" style="display:none">
+          <div class="card">
+            <table class="students-table" id="students-table">
+              <thead>
+                <tr>
+                  <th id="th-name">Enw</th>
+                  <th id="th-email">E-bost</th>
+                  <th id="th-joined">Ymunodd</th>
+                  <th id="th-videos">Fideos</th>
+                  <th id="th-group">Grŵp</th>
+                </tr>
+              </thead>
+              <tbody id="students-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin Panel -->
+    <div class="panel" id="panel-admin">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">⚙️ Admin Panel</div>
+          <div class="panel-subtitle" id="admin-subtitle">Rheolaeth lawn o'r platfform</div>
+        </div>
+      </div>
+
+      <!-- Stats row -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px" id="admin-stats">
+        <div class="card" style="padding:20px;text-align:center">
+          <div style="font-size:32px;font-weight:700;color:var(--accent)" id="stat-users">—</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px" id="stat-users-label">Defnyddwyr</div>
+        </div>
+        <div class="card" style="padding:20px;text-align:center">
+          <div style="font-size:32px;font-weight:700;color:var(--blue)" id="stat-classes">—</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px" id="stat-classes-label">Dosbarthiadau</div>
+        </div>
+        <div class="card" style="padding:20px;text-align:center">
+          <div style="font-size:32px;font-weight:700;color:var(--green)" id="stat-videos">—</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px" id="stat-videos-label">Fideos</div>
+        </div>
+        <div class="card" style="padding:20px;text-align:center">
+          <div style="font-size:32px;font-weight:700;color:var(--purple)" id="stat-comments">—</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px" id="stat-comments-label">Sylwadau</div>
+        </div>
+      </div>
+
+      <!-- Admin tabs -->
+      <div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border)">
+        <button class="tab-btn active" id="admin-tab-users" onclick="switchAdminTab('users')" style="background:none;border:none;padding:10px 16px;color:var(--accent);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;border-bottom:2px solid var(--accent);margin-bottom:-1px">👥 Defnyddwyr</button>
+        <button class="tab-btn" id="admin-tab-classes" onclick="switchAdminTab('classes')" style="background:none;border:none;padding:10px 16px;color:var(--text-muted);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px">🏫 Dosbarthiadau</button>
+        <button class="tab-btn" id="admin-tab-invite" onclick="switchAdminTab('invite')" style="background:none;border:none;padding:10px 16px;color:var(--text-muted);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px">✉️ Gwahodd Athro</button>
+      </div>
+
+      <!-- Users tab -->
+      <div id="admin-content-users">
+        <div class="card">
+          <table class="students-table" id="admin-users-table">
+            <thead>
+              <tr>
+                <th>Enw</th>
+                <th>E-bost</th>
+                <th>Rôl</th>
+                <th>Ymuno</th>
+                <th>Gweithredoedd</th>
+              </tr>
+            </thead>
+            <tbody id="admin-users-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- All Classes tab -->
+      <div id="admin-content-classes" style="display:none">
+        <div class="card-grid" id="admin-classes-grid"></div>
+      </div>
+
+      <!-- Invite Teacher tab -->
+      <div id="admin-content-invite" style="display:none">
+        <div class="card" style="padding:24px;max-width:480px">
+          <div style="font-size:15px;font-weight:600;margin-bottom:8px" id="invite-teacher-title">Gwahodd Athro/Athrawes</div>
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:20px" id="invite-teacher-subtitle">Bydd e-bost gwahoddiad yn cael ei anfon yn awtomatig.</div>
+          <div class="form-group">
+            <label class="form-label">E-bost</label>
+            <input type="email" class="form-input" id="invite-email" placeholder="athro@ysgol.cymru">
+          </div>
+          <div class="form-group">
+            <label class="form-label" id="invite-name-label">Enw (dewisol)</label>
+            <input type="text" class="form-input" id="invite-name" placeholder="e.e. Siân Williams">
+          </div>
+          <button class="btn btn-primary" onclick="inviteTeacher()">✉️ <span id="send-invite-text">Anfon Gwahoddiad</span></button>
+          <div id="invite-result" style="margin-top:16px;font-size:13px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Join Panel (students) -->
+    <div class="panel" id="panel-join">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title" id="join-title">Ymuno â Dosbarth</div>
+          <div class="panel-subtitle" id="join-subtitle">Rhowch y cod a roddwyd i chi gan eich athro/athrawes</div>
+        </div>
+      </div>
+      <div class="join-box">
+        <div class="join-box-title" id="join-box-label">Cod Gwahoddiad</div>
+        <div class="join-row">
+          <input type="text" class="form-input" id="join-code-input" placeholder="e.e. AB12CD" maxlength="6" style="text-transform:uppercase;letter-spacing:2px;font-size:16px;font-family:monospace">
+          <button class="btn btn-primary" onclick="joinClass()" id="join-btn">Ymuno →</button>
+        </div>
+      </div>
+      <div id="joined-classes-list"></div>
+    </div>
+
+    <!-- Video Player Panel -->
+    <div id="panel-player">
+      <div class="player-topbar">
+        <button class="back-btn" onclick="closePlayer()" style="margin:0">← <span id="player-back-text">Yn ôl</span></button>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600" id="player-title">—</div>
+          <div style="font-size:12px;color:var(--text-muted)" id="player-meta">—</div>
+        </div>
+      </div>
+      <div class="player-layout">
+        <div class="video-col">
+          <video id="video-el" playsinline preload="auto" style="flex:1;width:100%;object-fit:contain;background:#000;max-height:calc(100vh - 180px)"></video>
+          <div class="video-controls">
+            <div class="timeline-wrap">
+              <input type="range" id="timeline" value="0" step="0.01" min="0" max="100">
+              <div class="markers-layer" id="markers-layer"></div>
+            </div>
+            <div class="ctrl-row">
+              <button class="ctrl-btn" id="play-btn" onclick="togglePlay()">▶</button>
+              <button class="ctrl-btn" onclick="skip(-5)">⏪</button>
+              <button class="ctrl-btn" onclick="skip(5)">⏩</button>
+              <span class="time-disp" id="time-disp">0:00 / 0:00</span>
+              <button class="rate-btn" onclick="cycleRate()">1×</button>
+              <button class="comment-btn" onclick="openCommentPopup()">
+                💬 <span id="comment-btn-text">Sylw yma</span> <span style="opacity:0.6;font-size:10px">[C]</span>
+              </button>
+            </div>
+          </div>
+          <div class="cat-legend" id="cat-legend"></div>
+        </div>
+        <div class="comments-col">
+          <div class="comments-header">
+            <div class="comments-title" id="comments-title">Sylwadau</div>
+            <div class="comments-count" id="comments-count">0</div>
+          </div>
+          <div class="comments-list" id="comments-list">
+            <div class="empty-comments" id="comments-empty">
+              <div class="empty-icon">💬</div>
+              <p id="comments-empty-text">Arhoswch y fideo a gwasgwch "Sylw yma" i anodi'r eiliad honno</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Comment Popup -->
+<div class="popup-overlay" id="comment-popup">
+  <div class="popup">
+    <div class="popup-title" id="popup-title">Ychwanegu Sylw</div>
+    <div class="popup-ts" id="popup-ts">0:00</div>
+    <div class="cat-grid" id="cat-grid"></div>
+    <div class="form-group">
+      <textarea class="form-input" id="comment-text" rows="3" id="comment-textarea" placeholder="Ysgrifennwch eich adborth yma…"></textarea>
+    </div>
+    <div class="popup-actions">
+      <button class="btn btn-secondary" onclick="closeCommentPopup()"><span id="cancel-text">Canslo</span></button>
+      <button class="btn btn-primary" onclick="saveComment()"><span id="save-comment-text">Cadw Sylw ✓</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- New Class Modal -->
+<div class="modal-overlay" id="new-class-modal">
+  <div class="modal">
+    <div class="modal-title" id="modal-new-class-title">Dosbarth Newydd</div>
+    <div class="modal-subtitle" id="modal-new-class-subtitle">Bydd cod gwahoddiad unigryw yn cael ei greu yn awtomatig.</div>
+    <div class="form-group">
+      <label class="form-label" id="label-class-name">Enw'r Dosbarth</label>
+      <input type="text" class="form-input" id="new-class-name" placeholder="e.e. Blwyddyn 9 Band">
+    </div>
+    <div class="form-group">
+      <label class="form-label" id="label-class-desc">Disgrifiad (dewisol)</label>
+      <input type="text" class="form-input" id="new-class-desc" placeholder="e.e. Ensemble KS3 Tymor yr Hydref">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('new-class-modal')"><span id="modal-cancel">Canslo</span></button>
+      <button class="btn btn-primary" onclick="createClass()"><span id="modal-create">Creu Dosbarth →</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Video Modal -->
+<div class="modal-overlay" id="add-video-modal">
+  <div class="modal">
+    <div class="modal-title" id="modal-add-video-title">Ychwanegu Fideo</div>
+    <div class="modal-subtitle" id="modal-add-video-subtitle">Pastiwch ddolen Google Drive i fideo perfformiad.</div>
+
+    <!-- Toggle: individual or group -->
+    <div class="form-group">
+      <label class="form-label" id="label-video-type">Math o Fideo</label>
+      <div style="display:flex;gap:8px">
+        <button class="cat-btn selected" id="vtype-individual" onclick="setVideoType('individual')"
+          style="flex:1;border-color:var(--accent);color:var(--accent);background:rgba(240,180,41,0.08)">
+          👤 <span id="vtype-individual-text">Unigolyn</span>
+        </button>
+        <button class="cat-btn" id="vtype-group" onclick="setVideoType('group')" style="flex:1">
+          🎸 <span id="vtype-group-text">Grŵp</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Individual student selector -->
+    <div class="form-group" id="student-selector-group">
+      <label class="form-label" id="label-student-select">Disgybl</label>
+      <select class="form-input" id="video-student-select"></select>
+    </div>
+
+    <!-- Group selector -->
+    <div class="form-group" id="group-selector-group" style="display:none">
+      <label class="form-label" id="label-group-select">Grŵp</label>
+      <select class="form-input" id="video-group-select"></select>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:6px" id="group-video-hint">
+        Bydd y fideo hwn yn weladwy i bob aelod o'r grŵp.
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" id="label-video-title">Teitl / Tasg</label>
+      <input type="text" class="form-input" id="video-title-input" placeholder="e.e. Perfformiad Tymor yr Hydref" oninput="checkSubmitReady()">
+    </div>
+    <div class="form-group">
+      <label class="form-label" id="label-upload-video">Fideo</label>
+      <div id="upload-area" onclick="triggerUpload()"
+        ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+        ondragleave="this.style.borderColor=''"
+        ondrop="event.preventDefault();this.style.borderColor='';handleFileSelect({target:{files:event.dataTransfer.files}})"
+        style="border:2px dashed var(--border2);border-radius:var(--radius);padding:28px;text-align:center;cursor:pointer;transition:border-color 0.2s">
+        <div style="font-size:28px;margin-bottom:8px">🎬</div>
+        <div style="font-weight:600;margin-bottom:4px" id="upload-area-title">Cliciwch i ddewis fideo</div>
+        <div style="font-size:12px;color:var(--text-muted)" id="upload-area-hint">MP4, MOV, neu unrhyw fformat — uchafswm 100MB — neu lusgo yma</div>
+        <input type="file" id="video-file-input" accept="video/*" style="display:none" onchange="handleFileSelect(event)">
+      </div>
+      <div id="upload-progress-wrap" style="display:none;margin-top:12px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
+          <span id="upload-progress-label">Uwchlwytho...</span>
+          <span id="upload-progress-pct">0%</span>
+        </div>
+        <div style="background:var(--surface2);border-radius:99px;height:6px;overflow:hidden">
+          <div id="upload-progress-bar" style="height:100%;background:var(--accent);border-radius:99px;width:0%;transition:width 0.3s"></div>
+        </div>
+      </div>
+      <div id="upload-success" style="display:none;margin-top:10px;font-size:13px">
+        <span style="color:var(--green)">✓ <span id="upload-success-name"></span></span>
+        <span style="color:var(--text-muted);margin-left:8px;cursor:pointer;text-decoration:underline" onclick="triggerUpload()">Newid</span>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="cancelVideoModal()"><span id="modal-video-cancel">Canslo</span></button>
+      <button class="btn btn-primary" id="add-video-submit-btn" onclick="addVideo()" disabled style="opacity:0.5"><span id="modal-video-save">Ychwanegu Fideo →</span></button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="new-group-modal">
+  <div class="modal">
+    <div class="modal-title" id="modal-new-group-title">Grŵp Newydd</div>
+    <div class="modal-subtitle" id="modal-new-group-subtitle">Crëwch grŵp ensemble o fewn y dosbarth hwn.</div>
+    <div class="form-group">
+      <label class="form-label" id="label-group-name">Enw'r Grŵp</label>
+      <input type="text" class="form-input" id="new-group-name" placeholder="e.e. Band Jazz, Pedwarawd Llinynnol">
+    </div>
+    <div class="form-group">
+      <label class="form-label" id="label-group-desc">Disgrifiad (dewisol)</label>
+      <input type="text" class="form-input" id="new-group-desc" placeholder="e.e. Grŵp offerynnau chwyth">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('new-group-modal')"><span id="modal-group-cancel">Canslo</span></button>
+      <button class="btn btn-primary" onclick="createGroup()"><span id="modal-group-create">Creu Grŵp →</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- Manage Group Modal -->
+<div class="modal-overlay" id="manage-group-modal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-title" id="manage-group-title">—</div>
+    <div class="modal-subtitle" id="manage-group-subtitle">Rheoli aelodau'r grŵp</div>
+    <div class="form-group">
+      <label class="form-label" id="label-add-member">Ychwanegu Aelod</label>
+      <div style="display:flex;gap:10px">
+        <select class="form-input" id="add-member-select"></select>
+        <button class="btn btn-primary btn-sm" onclick="addGroupMember()" id="add-member-btn">Ychwanegu</button>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="form-group">
+      <label class="form-label" id="label-current-members">Aelodau Presennol</label>
+      <div id="current-members-list"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger btn-sm" onclick="deleteGroup()" id="delete-group-btn">🗑 Dileu Grŵp</button>
+      <button class="btn btn-primary" onclick="closeModal('manage-group-modal')"><span id="modal-group-done">Gorffen</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- Impersonate Modal -->
+<div class="modal-overlay" id="impersonate-modal">
+  <div class="modal">
+    <div class="modal-title">👁 Gweld fel Defnyddiwr</div>
+    <div class="modal-subtitle" id="impersonate-subtitle">Rydych yn gweld y platfform fel defnyddiwr arall. Cliciwch "Dychwelyd" i fynd yn ôl.</div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px">
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:4px">Yn edrych fel:</div>
+      <div style="font-size:15px;font-weight:600" id="impersonate-name">—</div>
+      <div style="font-size:12px;color:var(--text-muted)" id="impersonate-email">—</div>
+      <div style="margin-top:8px"><span class="badge badge-blue" id="impersonate-role">—</span></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="stopImpersonating()">↩ Dychwelyd fel Admin</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ─── SUPABASE ───
+const SUPABASE_URL = 'https://eszaolyporhlbrewvoks.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVzemFvbHlwb3JobGJyZXd2b2tzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwNTIxMzMsImV4cCI6MjA4ODYyODEzM30.szU3SVNE8etdihtsntuuIGLn8hBlODjzQNAtC_2gAWA';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ─── STATE ───
+let currentUser = null;
+let currentProfile = null;
+let currentLang = 'cy';
+let currentClass = null;
+let currentVideo = null;
+let videoComments = [];
+let commentTs = 0;
+let currentCat = 'General';
+let rateIdx = 0;
+const rates = [1, 1.25, 1.5, 0.5, 0.75];
+
+// ─── TRANSLATIONS ───
+const T = {
+  cy: {
+    loading: 'Llwytho…',
+    signin: 'Mewngofnodi gyda Google',
+    welcome: 'Croeso i NoteBack',
+    subtitle: "Mewngofnodwch â'ch cyfrif Google ysgol i ddechrau.",
+    setup_title: 'Croeso! Beth yw eich rôl?',
+    setup_subtitle: 'Dewiswch eich rôl i bersonoli eich profiad.',
+    role_teacher: 'Athro/Athrawes',
+    role_teacher_desc: 'Creu dosbarthiadau, ychwanegu fideos, rhoi adborth',
+    role_student: 'Disgybl',
+    role_student_desc: 'Ymuno â dosbarth, gweld adborth, ymateb',
+    save_continue: 'Cadw a Pharhau →',
+    home: 'Hafan',
+    classes: 'Dosbarthiadau',
+    new_class: 'Dosbarth Newydd',
+    join_class: 'Ymuno â Dosbarth',
+    overview: 'Trosolwg',
+    music_feedback: 'Adborth Cerddoriaeth',
+    teacher: 'Athro/Athrawes',
+    student: 'Disgybl',
+    add_video: 'Ychwanegu Fideo',
+    invite_code: 'Cod Gwahoddiad',
+    invite_hint: "Rhowch y cod hwn i'ch disgyblion i ymuno â'r dosbarth.",
+    copy: 'Copïo',
+    copied: 'Copïwyd! ✓',
+    videos_tab: '🎬 Fideos',
+    students_tab: '👥 Disgyblion',
+    no_videos: 'Dim fideos eto',
+    no_videos_text: 'Ychwanegwch fideo cyntaf y dosbarth hwn.',
+    back_classes: "Yn ôl i'r Dosbarthiadau",
+    back: 'Yn ôl',
+    join_title: 'Ymuno â Dosbarth',
+    join_subtitle: "Rhowch y cod a roddwyd i chi gan eich athro/athrawes",
+    join_label: 'Cod Gwahoddiad',
+    join_btn: 'Ymuno →',
+    comment_btn: 'Sylw yma',
+    add_comment: 'Ychwanegu Sylw',
+    comments: 'Sylwadau',
+    cancel: 'Canslo',
+    save_comment: 'Cadw Sylw ✓',
+    new_class_title: 'Dosbarth Newydd',
+    new_class_subtitle: 'Bydd cod gwahoddiad unigryw yn cael ei greu yn awtomatig.',
+    class_name_label: "Enw'r Dosbarth",
+    class_desc_label: 'Disgrifiad (dewisol)',
+    create_class: 'Creu Dosbarth →',
+    add_video_title: 'Ychwanegu Fideo',
+    add_video_subtitle: 'Pastiwch ddolen Google Drive i fideo perfformiad y disgybl.',
+    student_label: 'Disgybl',
+    video_title_label: 'Teitl / Tasg',
+    drive_label: 'Dolen Google Drive',
+    drive_hint: 'Yn Google Drive: De-gliciwch y fideo → Rhannu → Copïo dolen → Pastiwch yma',
+    save_video: 'Ychwanegu Fideo →',
+    th_name: 'Enw', th_email: 'E-bost', th_joined: 'Ymunodd', th_videos: 'Fideos', th_group: 'Grŵp',
+    no_groups: 'Dim grwpiau eto',
+    no_groups_text: 'Crëwch grŵp ensemble i drefnu eich disgyblion.',
+    members: 'aelod(au)',
+    manage: 'Rheoli',
+    group_created: 'Grŵp wedi\'i greu ✓',
+    group_deleted: 'Grŵp wedi\'i ddileu',
+    member_added: 'Aelod wedi\'i ychwanegu ✓',
+    all_added: 'Pob disgybl eisoes yn y grŵp',
+    no_members_yet: 'Dim aelodau eto — ychwanegwch rai uchod',
+    groups_tab: '🎸 Grwpiau',
+    cats: { Rhythm:'Curiad', Pitch:'Traw', Expression:'Mynegiant', Technique:'Techneg', Ensemble:'Ensemble', General:'Cyffredinol' },
+    comments_empty: 'Arhoswch y fideo a gwasgwch "Sylw yma" i anodi\'r eiliad honno',
+    no_classes: 'Dim dosbarthiadau eto',
+    no_classes_teacher: 'Crëwch eich dosbarth cyntaf i ddechrau.',
+    no_classes_student: "Defnyddiwch y cod gwahoddiad i ymuno â dosbarth.",
+    home_greeting_teacher: 'Hafan yr Athro/Athrawes',
+    home_greeting_student: 'Hafan y Disgybl',
+    signout: 'Allgofnodi',
+    comment_saved: 'Sylw wedi\'i gadw ✓',
+    class_created: 'Dosbarth wedi\'i greu ✓',
+    joined_class: 'Wedi ymuno â\'r dosbarth ✓',
+    video_added: 'Fideo wedi\'i ychwanegu ✓',
+    invalid_code: 'Cod annilys — gwiriwch a cheisiwch eto',
+    fill_fields: 'Llenwch yr holl feysydd',
+    write_something: 'Ysgrifennwch rywbeth yn gyntaf',
+  },
+  en: {
+    loading: 'Loading…',
+    signin: 'Sign in with Google',
+    welcome: 'Welcome to NoteBack',
+    subtitle: 'Sign in with your school Google account to get started.',
+    setup_title: 'Welcome! What is your role?',
+    setup_subtitle: 'Choose your role to personalise your experience.',
+    role_teacher: 'Teacher',
+    role_teacher_desc: 'Create classes, add videos, give feedback',
+    role_student: 'Student',
+    role_student_desc: 'Join a class, view feedback, respond',
+    save_continue: 'Save & Continue →',
+    home: 'Home',
+    classes: 'Classes',
+    new_class: 'New Class',
+    join_class: 'Join a Class',
+    overview: 'Overview',
+    music_feedback: 'Music Feedback',
+    teacher: 'Teacher',
+    student: 'Student',
+    add_video: 'Add Video',
+    invite_code: 'Invite Code',
+    invite_hint: 'Share this code with your students to join the class.',
+    copy: 'Copy',
+    copied: 'Copied! ✓',
+    videos_tab: '🎬 Videos',
+    students_tab: '👥 Students',
+    no_videos: 'No videos yet',
+    no_videos_text: 'Add the first video for this class.',
+    back_classes: 'Back to Classes',
+    back: 'Back',
+    join_title: 'Join a Class',
+    join_subtitle: 'Enter the invite code given to you by your teacher',
+    join_label: 'Invite Code',
+    join_btn: 'Join →',
+    comment_btn: 'Comment here',
+    add_comment: 'Add Comment',
+    comments: 'Comments',
+    cancel: 'Cancel',
+    save_comment: 'Save Comment ✓',
+    new_class_title: 'New Class',
+    new_class_subtitle: 'A unique invite code will be generated automatically.',
+    class_name_label: 'Class Name',
+    class_desc_label: 'Description (optional)',
+    create_class: 'Create Class →',
+    add_video_title: 'Add Video',
+    add_video_subtitle: 'Paste a Google Drive link to the student performance video.',
+    student_label: 'Student',
+    video_title_label: 'Title / Task',
+    drive_label: 'Google Drive Link',
+    drive_hint: 'In Google Drive: Right-click the video → Share → Copy link → Paste here',
+    save_video: 'Add Video →',
+    th_name: 'Name', th_email: 'Email', th_joined: 'Joined', th_videos: 'Videos', th_group: 'Group',
+    no_groups: 'No groups yet',
+    no_groups_text: 'Create an ensemble group to organise your students.',
+    members: 'member(s)',
+    manage: 'Manage',
+    group_created: 'Group created ✓',
+    group_deleted: 'Group deleted',
+    member_added: 'Member added ✓',
+    all_added: 'All students already in group',
+    no_members_yet: 'No members yet — add some above',
+    groups_tab: '🎸 Groups',
+    cats: { Rhythm:'Rhythm', Pitch:'Pitch', Expression:'Expression', Technique:'Technique', Ensemble:'Ensemble', General:'General' },
+    comments_empty: 'Pause the video and press "Comment here" to annotate that moment',
+    no_classes: 'No classes yet',
+    no_classes_teacher: 'Create your first class to get started.',
+    no_classes_student: 'Use your invite code to join a class.',
+    home_greeting_teacher: 'Teacher Dashboard',
+    home_greeting_student: 'Student Dashboard',
+    signout: 'Sign out',
+    comment_saved: 'Comment saved ✓',
+    class_created: 'Class created ✓',
+    joined_class: 'Joined class ✓',
+    video_added: 'Video added ✓',
+    invalid_code: 'Invalid code — please check and try again',
+    fill_fields: 'Please fill in all fields',
+    write_something: 'Write something first',
+  }
+};
+
+function t(key) { return T[currentLang][key] || T['cy'][key] || key; }
+
+// ─── INIT ───
+async function init() {
+  document.getElementById('loading-msg').textContent = t('loading');
+
+  const { data: { session } } = await sb.auth.getSession();
+
+  if (session) {
+    currentUser = session.user;
+    await loadProfile();
+  } else {
+    hideLoading();
+    showScreen('auth');
+  }
+
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      currentUser = session.user;
+      await loadProfile();
+    } else if (event === 'SIGNED_OUT') {
+      currentUser = null; currentProfile = null;
+      showScreen('auth');
+    }
+  });
+}
+
+async function loadProfile() {
+  const { data, error } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+
+  if (error || !data) {
+    hideLoading();
+    showScreen('setup');
+    return;
+  }
+
+  currentProfile = data;
+  currentLang = data.language || 'cy';
+  applyLang();
+  hideLoading();
+  showScreen('app');
+  await loadApp();
+}
+
+// ─── AUTH ───
+async function signInWithGoogle() {
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.href }
+  });
+  if (error) showToast('Error: ' + error.message);
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+  showScreen('auth');
+}
+
+// ─── SETUP ───
+let selectedRole = null;
+
+function selectRole(role) {
+  selectedRole = role;
+  document.getElementById('role-teacher').classList.toggle('selected', role === 'teacher');
+  document.getElementById('role-student').classList.toggle('selected', role === 'student');
+}
+
+async function saveRole() {
+  if (!selectedRole) { showToast(t('fill_fields')); return; }
+
+  const { error } = await sb.from('profiles').update({
+    role: selectedRole,
+    language: currentLang,
+    full_name: currentUser.user_metadata?.full_name || currentUser.email,
+    avatar_url: currentUser.user_metadata?.avatar_url || null
+  }).eq('id', currentUser.id);
+
+  if (error) { showToast('Error: ' + error.message); return; }
+
+  await loadProfile();
+}
+
+// ─── LOAD APP ───
+async function loadApp() {
+  updateSidebar();
+  applyLang();
+  showPanel('home');
+  await loadHomePanel();
+  await loadClassesNav();
+}
+
+function updateSidebar() {
+  const p = currentProfile;
+  const name = p.full_name || currentUser.email;
+  document.getElementById('sb-name').textContent = name;
+  document.getElementById('sb-role').textContent = currentProfile.role === 'admin' ? 'Admin' : t(currentProfile.role === 'teacher' ? 'teacher' : 'student');
+
+  const av = document.getElementById('sb-avatar');
+  if (p.avatar_url) {
+    av.innerHTML = `<img src="${p.avatar_url}" alt="">`;
+  } else {
+    av.textContent = name.charAt(0).toUpperCase();
+  }
+
+  if (currentProfile.role === 'teacher' || currentProfile.role === 'admin') {
+    document.getElementById('nav-new-class').style.display = 'flex';
+    document.getElementById('nav-join-class').style.display = 'none';
+    document.getElementById('new-class-btn').style.display = 'inline-flex';
+    document.getElementById('add-video-btn').style.display = 'inline-flex';
+    document.getElementById('invite-code-bar').style.display = 'flex';
+  } else {
+    document.getElementById('nav-new-class').style.display = 'none';
+    document.getElementById('nav-join-class').style.display = 'flex';
+    document.getElementById('new-class-btn').style.display = 'none';
+    document.getElementById('add-video-btn').style.display = 'none';
+    document.getElementById('invite-code-bar').style.display = 'none';
+  }
+
+  // Show admin nav only for admins
+  document.getElementById('admin-nav-section').style.display = isAdmin() ? 'block' : 'none';
+}
+
+async function loadHomePanel() {
+  const isTeacher = currentProfile.role === 'teacher' || currentProfile.role === 'admin';
+  const isAdmin_ = currentProfile.role === 'admin';
+  document.getElementById('home-title').textContent = t(isTeacher ? 'home_greeting_teacher' : 'home_greeting_student');
+  document.getElementById('home-subtitle').textContent = currentProfile.full_name || currentUser.email;
+
+  let classes = [];
+  if (isTeacher) {
+    const { data } = await sb.from('classes').select('*, class_members(count)').eq('teacher_id', currentUser.id).order('created_at', { ascending: false });
+    classes = data || [];
+  } else {
+    const { data } = await sb.from('class_members').select('classes(*)').eq('student_id', currentUser.id);
+    classes = (data || []).map(d => d.classes).filter(Boolean);
+  }
+
+  const content = document.getElementById('home-content');
+
+  const adminBanner = isAdmin_ ? `
+    <div style="background:rgba(240,180,41,0.08);border:1px solid rgba(240,180,41,0.2);border-radius:var(--radius);padding:16px;margin-bottom:24px;display:flex;align-items:center;gap:16px">
+      <div style="font-size:24px">⚙️</div>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:14px">Admin Panel</div>
+        <div style="font-size:12px;color:var(--text-muted)">Rheoli defnyddwyr, dosbarthiadau a'r platfform cyfan</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="showPanel('admin')">Agor →</button>
+    </div>` : '';
+
+  if (classes.length === 0) {
+    content.innerHTML = adminBanner + `
+      <div class="empty-state">
+        <div class="empty-icon">${isTeacher ? '🏫' : '🎓'}</div>
+        <h3>${t('no_classes')}</h3>
+        <p>${t(isTeacher ? 'no_classes_teacher' : 'no_classes_student')}</p>
+        ${isTeacher ? `<button class="btn btn-primary" style="margin-top:20px" onclick="openNewClassModal()">➕ ${t('new_class')}</button>` : `<button class="btn btn-primary" style="margin-top:20px" onclick="showPanel('join')">🔗 ${t('join_class')}</button>`}
+      </div>`;
+    return;
+  }
+
+  content.innerHTML = adminBanner + `<div class="card-grid">${classes.map(c => `
+    <div class="class-card" onclick="openClass('${c.id}')">
+      <div class="class-card-name">${esc(c.name)}</div>
+      <div class="class-card-meta">${c.description ? esc(c.description) : ''}</div>
+      ${isTeacher ? `<div class="class-card-code"><span style="font-size:11px;color:var(--text-muted)">${t('invite_code')}</span><span class="invite-code">${c.invite_code}</span></div>` : ''}
+    </div>`).join('')}</div>`;
+}
+
+async function loadClassesNav() {
+  let classes = [];
+  if (currentProfile.role === 'teacher') {
+    const { data } = await sb.from('classes').select('*').eq('teacher_id', currentUser.id).order('created_at');
+    classes = data || [];
+  } else {
+    const { data } = await sb.from('class_members').select('classes(*)').eq('student_id', currentUser.id);
+    classes = (data || []).map(d => d.classes).filter(Boolean);
+  }
+
+  const nav = document.getElementById('classes-nav-list');
+  nav.innerHTML = classes.map(c => `
+    <button class="class-item" onclick="openClass('${c.id}')" id="nav-class-${c.id}">
+      <div class="class-dot"></div>
+      ${esc(c.name)}
+    </button>`).join('');
+}
+
+// ─── CLASSES ───
+async function openClass(classId) {
+  showPanel('classes');
+  document.getElementById('classes-list-view').style.display = 'none';
+  document.getElementById('class-detail-view').style.display = 'block';
+
+  const { data: cls } = await sb.from('classes').select('*').eq('id', classId).single();
+  currentClass = cls;
+
+  document.getElementById('detail-class-name').textContent = cls.name;
+  document.getElementById('detail-class-meta').textContent = cls.description || '';
+  document.getElementById('detail-invite-code').textContent = cls.invite_code;
+
+  document.querySelectorAll('.class-item').forEach(el => el.classList.remove('active'));
+  const navEl = document.getElementById(`nav-class-${classId}`);
+  if (navEl) navEl.classList.add('active');
+
+  switchTab('videos');
+  await loadVideos(classId);
+}
+
+function showClassList() {
+  document.getElementById('classes-list-view').style.display = 'block';
+  document.getElementById('class-detail-view').style.display = 'none';
+  currentClass = null;
+  loadClassesGrid();
+}
+
+async function loadClassesGrid() {
+  let classes = [];
+  if (currentProfile.role === 'teacher') {
+    const { data } = await sb.from('classes').select('*').eq('teacher_id', currentUser.id).order('created_at', { ascending: false });
+    classes = data || [];
+  }
+
+  const grid = document.getElementById('classes-grid');
+  if (classes.length === 0) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🏫</div><h3>${t('no_classes')}</h3><p>${t('no_classes_teacher')}</p></div>`;
+    return;
+  }
+  grid.innerHTML = classes.map(c => `
+    <div class="class-card" onclick="openClass('${c.id}')">
+      <div class="class-card-name">${esc(c.name)}</div>
+      <div class="class-card-meta">${c.description ? esc(c.description) : ''}</div>
+      <div class="class-card-code">
+        <span style="font-size:11px;color:var(--text-muted)">${t('invite_code')}</span>
+        <span class="invite-code">${c.invite_code}</span>
+      </div>
+    </div>`).join('');
+}
+
+async function createClass() {
+  const name = document.getElementById('new-class-name').value.trim();
+  const desc = document.getElementById('new-class-desc').value.trim();
+  if (!name) { showToast(t('fill_fields')); return; }
+
+  const { data, error } = await sb.from('classes').insert({
+    name, description: desc || null, teacher_id: currentUser.id
+  }).select().single();
+
+  if (error) {
+    console.error('createClass error:', error);
+    showToast('Gwall: ' + error.message);
+    return;
+  }
+
+  closeModal('new-class-modal');
+  document.getElementById('new-class-name').value = '';
+  document.getElementById('new-class-desc').value = '';
+  showToast(t('class_created'));
+  await loadClassesNav();
+  await loadHomePanel();
+  openClass(data.id);
+}
+
+async function loadVideos(classId) {
+  const isTeacher = currentProfile.role === 'teacher' || currentProfile.role === 'admin';
+
+  let query = sb.from('videos')
+    .select('*, profiles!videos_student_id_fkey(full_name, email), groups(name)')
+    .eq('class_id', classId)
+    .order('created_at', { ascending: false });
+  if (!isTeacher) query = query.eq('student_id', currentUser.id);
+
+  const { data: videos } = await query;
+  const list = document.getElementById('videos-list');
+  const empty = document.getElementById('videos-empty');
+
+  if (!videos || videos.length === 0) {
+    if (empty) { list.innerHTML = ''; list.appendChild(empty); empty.style.display = 'flex'; }
+    return;
+  }
+
+  if (empty) empty.style.display = 'none';
+
+  // Group videos: deduplicate by drive_url+group so teacher sees one entry per group video
+  const seen = new Set();
+  const displayVideos = isTeacher ? videos.filter(v => {
+    if (!v.group_id) return true;
+    const key = v.drive_url + v.group_id;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }) : videos;
+
+  list.innerHTML = displayVideos.map(v => {
+    const groupLabel = v.groups?.name
+      ? `<span class="badge badge-blue" style="margin-left:8px">🎸 ${esc(v.groups.name)}</span>`
+      : '';
+    const studentName = v.groups?.name
+      ? `Grŵp: ${esc(v.groups.name)}`
+      : v.profiles?.full_name || v.profiles?.email || '';
+    return `
+    <div class="video-item" onclick="openVideo('${v.id}')">
+      <div class="video-thumb">🎬</div>
+      <div class="video-info">
+        <div class="video-title">${esc(v.title)}${groupLabel}</div>
+        <div class="video-meta">${studentName} · ${new Date(v.created_at).toLocaleDateString(currentLang === 'cy' ? 'cy-GB' : 'en-GB')}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadStudents(classId) {
+  const { data } = await sb.from('class_members').select('*, profiles(full_name, email, created_at)').eq('class_id', classId);
+  const tbody = document.getElementById('students-tbody');
+
+  if (!data || data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px">${t('no_classes')}</td></tr>`;
+    return;
+  }
+
+  // Get video counts per student
+  const { data: videos } = await sb.from('videos').select('student_id').eq('class_id', classId);
+  const videoCounts = {};
+  (videos || []).forEach(v => { videoCounts[v.student_id] = (videoCounts[v.student_id] || 0) + 1; });
+
+  tbody.innerHTML = data.map(m => `
+    <tr>
+      <td>${esc(m.profiles?.full_name || '—')}</td>
+      <td style="color:var(--text-muted)">${esc(m.profiles?.email || '—')}</td>
+      <td style="color:var(--text-muted)">${new Date(m.joined_at).toLocaleDateString(currentLang === 'cy' ? 'cy-GB' : 'en-GB')}</td>
+      <td><span class="badge badge-blue">${videoCounts[m.student_id] || 0}</span></td>
+    </tr>`).join('');
+}
+
+function switchTab(tab) {
+  document.getElementById('tab-content-videos').style.display = tab === 'videos' ? 'block' : 'none';
+  document.getElementById('tab-content-groups').style.display = tab === 'groups' ? 'block' : 'none';
+  document.getElementById('tab-content-students').style.display = tab === 'students' ? 'block' : 'none';
+
+  ['videos','groups','students'].forEach(t => {
+    const btn = document.getElementById('tab-' + t);
+    const isActive = t === tab;
+    btn.style.color = isActive ? 'var(--accent)' : 'var(--text-muted)';
+    btn.style.borderBottomColor = isActive ? 'var(--accent)' : 'transparent';
+  });
+
+  if (tab === 'students' && currentClass) loadStudents(currentClass.id);
+  if (tab === 'groups' && currentClass) loadGroups(currentClass.id);
+}
+
+function copyInviteCode() {
+  const code = document.getElementById('detail-invite-code').textContent;
+  navigator.clipboard.writeText(code);
+  showToast(t('copied'));
+}
+
+// ─── JOIN CLASS (student) ───
+async function joinClass() {
+  const code = document.getElementById('join-code-input').value.trim().toUpperCase();
+  if (!code) { showToast(t('fill_fields')); return; }
+
+  const { data: cls } = await sb.from('classes').select('*').eq('invite_code', code).single();
+  if (!cls) { showToast(t('invalid_code')); return; }
+
+  const { error } = await sb.from('class_members').insert({ class_id: cls.id, student_id: currentUser.id });
+  if (error && !error.message.includes('duplicate')) { showToast('Error: ' + error.message); return; }
+
+  document.getElementById('join-code-input').value = '';
+  showToast(t('joined_class'));
+  await loadClassesNav();
+  await loadHomePanel();
+  openClass(cls.id);
+}
+
+// ─── ADD VIDEO ───
+// ─── CLOUDINARY UPLOAD ───
+const CLOUDINARY_CLOUD = 'dnia0eihr';
+const CLOUDINARY_PRESET = 'noteback_videos';
+let uploadedVideoUrl = null;
+
+function triggerUpload() {
+  document.getElementById('video-file-input').click();
+}
+
+function handleFileSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 100 * 1024 * 1024) {
+    showToast('Mae\'r ffeil yn rhy fawr — uchafswm 100MB. Compresiwch y fideo yn gyntaf.', 6000);
+    return;
+  }
+  uploadToCloudinary(file);
+}
+
+async function uploadToCloudinary(file) {
+  uploadedVideoUrl = null;
+  document.getElementById('add-video-submit-btn').disabled = true;
+  document.getElementById('add-video-submit-btn').style.opacity = '0.5';
+  document.getElementById('upload-success').style.display = 'none';
+  document.getElementById('upload-progress-wrap').style.display = 'block';
+  document.getElementById('upload-progress-bar').style.width = '0%';
+  document.getElementById('upload-progress-pct').textContent = '0%';
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_PRESET);
+  formData.append('folder', 'noteback');
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/video/upload`);
+
+  xhr.upload.onprogress = (e) => {
+    if (e.lengthComputable) {
+      const pct = Math.round((e.loaded / e.total) * 100);
+      document.getElementById('upload-progress-bar').style.width = pct + '%';
+      document.getElementById('upload-progress-pct').textContent = pct + '%';
+    }
+  };
+
+  xhr.onload = () => {
+    if (xhr.status === 200) {
+      const res = JSON.parse(xhr.responseText);
+      uploadedVideoUrl = res.secure_url;
+      document.getElementById('upload-progress-wrap').style.display = 'none';
+      document.getElementById('upload-success').style.display = 'block';
+      document.getElementById('upload-success-name').textContent = file.name;
+      checkSubmitReady();
+    } else {
+      const errMsg = xhr.responseText ? JSON.parse(xhr.responseText)?.error?.message : xhr.status;
+      showToast('Gwall Cloudinary: ' + errMsg, 6000);
+      document.getElementById('upload-progress-wrap').style.display = 'none';
+    }
+  };
+
+  xhr.onerror = () => {
+    showToast('Gwall rhwydwaith wrth uwchlwytho — gwiriwch eich cysylltiad', 6000);
+    document.getElementById('upload-progress-wrap').style.display = 'none';
+  };
+
+  xhr.send(formData);
+}
+
+function checkSubmitReady() {
+  const title = document.getElementById('video-title-input').value.trim();
+  const ready = !!(title && uploadedVideoUrl);
+  const btn = document.getElementById('add-video-submit-btn');
+  btn.disabled = !ready;
+  btn.style.opacity = ready ? '1' : '0.5';
+}
+
+function cancelVideoModal() {
+  uploadedVideoUrl = null;
+  document.getElementById('video-file-input').value = '';
+  document.getElementById('upload-success').style.display = 'none';
+  document.getElementById('upload-progress-wrap').style.display = 'none';
+  document.getElementById('add-video-submit-btn').disabled = true;
+  document.getElementById('add-video-submit-btn').style.opacity = '0.5';
+  closeModal('add-video-modal');
+}
+
+let currentVideoType = 'individual';
+
+function setVideoType(type) {
+  currentVideoType = type;
+  const isGroup = type === 'group';
+  document.getElementById('student-selector-group').style.display = isGroup ? 'none' : 'block';
+  document.getElementById('group-selector-group').style.display = isGroup ? 'block' : 'none';
+  document.getElementById('vtype-individual').classList.toggle('selected', !isGroup);
+  document.getElementById('vtype-individual').style.borderColor = !isGroup ? 'var(--accent)' : '';
+  document.getElementById('vtype-individual').style.color = !isGroup ? 'var(--accent)' : '';
+  document.getElementById('vtype-individual').style.background = !isGroup ? 'rgba(240,180,41,0.08)' : '';
+  document.getElementById('vtype-group').classList.toggle('selected', isGroup);
+  document.getElementById('vtype-group').style.borderColor = isGroup ? 'var(--accent)' : '';
+  document.getElementById('vtype-group').style.color = isGroup ? 'var(--accent)' : '';
+  document.getElementById('vtype-group').style.background = isGroup ? 'rgba(240,180,41,0.08)' : '';
+}
+
+async function openAddVideoModal() {
+  if (!currentClass) return;
+  setVideoType('individual');
+  uploadedVideoUrl = null;
+  document.getElementById('video-file-input').value = '';
+  document.getElementById('upload-success').style.display = 'none';
+  document.getElementById('upload-progress-wrap').style.display = 'none';
+  document.getElementById('add-video-submit-btn').disabled = true;
+  document.getElementById('add-video-submit-btn').style.opacity = '0.5';
+
+  const { data: members } = await sb.from('class_members')
+    .select('*, profiles(full_name, email)').eq('class_id', currentClass.id);
+  const studentSel = document.getElementById('video-student-select');
+  studentSel.innerHTML = (members || []).length
+    ? members.map(m => `<option value="${m.student_id}">${esc(m.profiles?.full_name || m.profiles?.email || m.student_id)}</option>`).join('')
+    : `<option disabled>— Dim disgyblion —</option>`;
+
+  const { data: groups } = await sb.from('groups').select('*').eq('class_id', currentClass.id);
+  const groupSel = document.getElementById('video-group-select');
+  groupSel.innerHTML = (groups || []).length
+    ? groups.map(g => `<option value="${g.id}">${esc(g.name)}</option>`).join('')
+    : `<option disabled>— Dim grwpiau —</option>`;
+
+  openModal('add-video-modal');
+}
+
+async function addVideo() {
+  const title = document.getElementById('video-title-input').value.trim();
+  if (!title || !uploadedVideoUrl) { showToast(t('fill_fields')); return; }
+  const isGroup = currentVideoType === 'group';
+
+  if (isGroup) {
+    const groupId = document.getElementById('video-group-select').value;
+    if (!groupId) { showToast(t('fill_fields')); return; }
+    const { data: groupMembers, error: gmError } = await sb.from('group_members').select('student_id').eq('group_id', groupId);
+    if (gmError) { showToast('Gwall grŵp: ' + gmError.message); return; }
+    if (!groupMembers || groupMembers.length === 0) { showToast('Dim aelodau yn y grŵp hwn eto'); return; }
+    const inserts = groupMembers.map(m => ({
+      class_id: currentClass.id, student_id: m.student_id,
+      uploaded_by: currentUser.id, group_id: groupId,
+      title, drive_url: uploadedVideoUrl
+    }));
+    const { error } = await sb.from('videos').insert(inserts);
+    if (error) { showToast('Gwall: ' + error.message); console.error('Group video insert error:', error); return; }
+  } else {
+    const studentId = document.getElementById('video-student-select').value;
+    if (!studentId) { showToast(t('fill_fields')); return; }
+    const { error } = await sb.from('videos').insert({
+      class_id: currentClass.id, student_id: studentId,
+      uploaded_by: currentUser.id, title, drive_url: uploadedVideoUrl
+    });
+    if (error) { showToast('Gwall: ' + error.message); console.error('Individual video insert error:', error); return; }
+  }
+
+  cancelVideoModal();
+  document.getElementById('video-title-input').value = '';
+  showToast(t('video_added'));
+  await loadVideos(currentClass.id);
+}
+
+// ─── VIDEO PLAYER ───
+async function openVideo(videoId) {
+  const { data: video } = await sb.from('videos')
+    .select('*, profiles!videos_student_id_fkey(full_name, email), groups(name)')
+    .eq('id', videoId).single();
+  if (!video) return;
+  currentVideo = video;
+
+  document.getElementById('player-title').textContent = video.title;
+  const metaName = video.groups?.name
+    ? `Grŵp: ${video.groups.name}`
+    : video.profiles?.full_name || video.profiles?.email || '';
+  document.getElementById('player-meta').textContent = metaName;
+
+  // Remove any leftover iframe
+  const old = document.getElementById('drive-iframe');
+  if (old) old.remove();
+
+  // Use native <video> element with Cloudinary URL
+  const videoEl = document.getElementById('video-el');
+  videoEl.src = video.drive_url;
+  videoEl.style.display = 'block';
+  videoEl.load();
+
+  document.querySelector('.video-controls').style.display = 'block';
+  document.getElementById('cat-legend').style.display = 'flex';
+
+  // Wire up controls
+  videoEl.ontimeupdate = updateTimeline;
+  videoEl.onloadedmetadata = () => {
+    document.getElementById('timeline').max = videoEl.duration;
+    updateTimeline();
+    renderMarkers();
+  };
+  videoEl.onplay = () => document.getElementById('play-btn').textContent = '⏸';
+  videoEl.onpause = () => document.getElementById('play-btn').textContent = '▶';
+  videoEl.onended = () => document.getElementById('play-btn').textContent = '▶';
+
+  await loadComments(videoId);
+
+  document.getElementById('panel-player').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function updateTimeline() {
+  const v = document.getElementById('video-el');
+  const tl = document.getElementById('timeline');
+  if (!v.duration) return;
+  tl.value = v.currentTime;
+  tl.max = v.duration;
+  document.getElementById('time-disp').textContent = fmtTime(v.currentTime) + ' / ' + fmtTime(v.duration);
+}
+
+function fmtTime(s) {
+  if (!s || isNaN(s)) return '0:00';
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return m + ':' + String(sec).padStart(2, '0');
+}
+
+function seekTimeline(val) {
+  document.getElementById('video-el').currentTime = parseFloat(val);
+}
+
+function togglePlay() {
+  const v = document.getElementById('video-el');
+  v.paused ? v.play() : v.pause();
+}
+
+function skip(secs) {
+  const v = document.getElementById('video-el');
+  v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + secs));
+}
+
+function cycleRate() {
+  const v = document.getElementById('video-el');
+  const rates = [1, 1.25, 1.5, 0.75, 0.5];
+  const idx = rates.indexOf(v.playbackRate);
+  v.playbackRate = rates[(idx + 1) % rates.length];
+  document.querySelector('.rate-btn').textContent = v.playbackRate + '×';
+}
+
+function seekTo(secs) {
+  const v = document.getElementById('video-el');
+  v.currentTime = secs;
+  v.play();
+}
+
+function renderMarkers() {
+  const layer = document.getElementById('markers-layer');
+  const v = document.getElementById('video-el');
+  if (!layer || !v || !v.duration) return;
+  layer.innerHTML = videoComments.filter(c => c.timestamp_seconds > 0).map(c => {
+    const pct = (c.timestamp_seconds / v.duration) * 100;
+    return `<div class="tmarker cat-${c.category}" style="left:${pct}%" title="${esc(c.text)}" onclick="seekTo(${c.timestamp_seconds});highlightComment('${c.id}')"></div>`;
+  }).join('');
+}
+
+function highlightComment(id) {
+  // Remove existing highlights
+  document.querySelectorAll('.c-card').forEach(el => el.classList.remove('c-card-highlight'));
+  const target = document.getElementById('comment-' + id);
+  if (target) {
+    target.classList.add('c-card-highlight');
+    target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+function closePlayer() {
+  const v = document.getElementById('video-el');
+  v.pause();
+  v.src = '';
+  v.style.display = 'none';
+  document.querySelector('.video-controls').style.display = 'block';
+  document.getElementById('cat-legend').style.display = 'flex';
+  document.getElementById('panel-player').style.display = 'none';
+  document.body.style.overflow = '';
+  currentVideo = null;
+}
+
+// ─── COMMENTS ───
+async function loadComments(videoId) {
+  const { data } = await sb.from('comments')
+    .select('*, profiles(full_name, email)')
+    .eq('video_id', videoId)
+    .order('timestamp_seconds');
+  videoComments = data || [];
+  renderComments();
+  // Render markers only if video duration is already known
+  const v = document.getElementById('video-el');
+  if (v && v.duration) renderMarkers();
+}
+
+function openCommentPopup() {
+  buildCatGrid();
+  const v = document.getElementById('video-el');
+  if (v && !v.paused) v.pause();
+  const ts = v ? v.currentTime : 0;
+  document.getElementById('popup-ts').textContent = fmtTime(ts);
+  document.getElementById('comment-popup').classList.add('show');
+  document.getElementById('comment-text').value = '';
+  document.getElementById('comment-text').focus();
+}
+
+function closeCommentPopup() {
+  document.getElementById('comment-popup').classList.remove('show');
+}
+
+function buildCatGrid() {
+  const cats = T[currentLang].cats;
+  const grid = document.getElementById('cat-grid');
+  const colors = { Rhythm:'var(--blue)', Pitch:'var(--green)', Expression:'var(--purple)', Technique:'var(--accent)', Ensemble:'var(--pink)', General:'var(--text-muted)' };
+
+  grid.innerHTML = Object.entries(cats).map(([key, label]) => `
+    <button class="cat-btn ${currentCat === key ? 'selected' : ''}"
+      style="${currentCat === key ? `border-color:${colors[key]};color:${colors[key]};background:${colors[key]}22` : ''}"
+      onclick="selectCat('${key}')">
+      ${label}
+    </button>`).join('');
+}
+
+function selectCat(cat) {
+  currentCat = cat;
+  buildCatGrid();
+}
+
+async function saveComment() {
+  const text = document.getElementById('comment-text').value.trim();
+  if (!text) { showToast(t('write_something')); return; }
+  if (!currentVideo) return;
+
+  const commentRole = currentProfile.role === 'admin' ? 'teacher' : currentProfile.role;
+  const v = document.getElementById('video-el');
+  const timestamp = v ? Math.floor(v.currentTime) : 0;
+
+  const { error } = await sb.from('comments').insert({
+    video_id: currentVideo.id,
+    author_id: currentUser.id,
+    timestamp_seconds: timestamp,
+    text,
+    category: currentCat,
+    role: commentRole
+  });
+
+  if (error) { showToast('Gwall: ' + error.message); return; }
+
+  closeCommentPopup();
+  showToast(t('comment_saved'));
+  await loadComments(currentVideo.id);
+}
+
+async function deleteComment(id) {
+  await sb.from('comments').delete().eq('id', id);
+  await loadComments(currentVideo.id);
+}
+
+function renderComments() {
+  const list = document.getElementById('comments-list');
+  const count = document.getElementById('comments-count');
+  const cats = T[currentLang].cats;
+  const colors = { Rhythm:'var(--blue)', Pitch:'var(--green)', Expression:'var(--purple)', Technique:'var(--accent)', Ensemble:'var(--pink)', General:'var(--text-muted)', Curiad:'var(--blue)', Traw:'var(--green)', Mynegiant:'var(--purple)', Techneg:'var(--accent)', Cyffredinol:'var(--text-muted)' };
+
+  count.textContent = videoComments.length;
+
+  if (videoComments.length === 0) {
+    list.innerHTML = `<div class="empty-comments" style="display:flex"><div class="empty-icon">💬</div><p id="comments-empty-text">${t('comments_empty')}</p></div>`;
+    return;
+  }
+
+  const canDelete = currentProfile.role === 'teacher' || currentProfile.role === 'admin';
+
+  list.innerHTML = videoComments.map(c => {
+    const catLabel = cats[c.category] || c.category;
+    const color = colors[c.category] || 'var(--text-muted)';
+    const author = c.profiles?.full_name || c.profiles?.email || '—';
+    const date = new Date(c.created_at).toLocaleDateString(currentLang === 'cy' ? 'cy-GB' : 'en-GB');
+    const tsLabel = c.timestamp_seconds > 0
+      ? `<span onclick="seekTo(${c.timestamp_seconds})" style="cursor:pointer;color:var(--accent);font-weight:600;font-size:11px" title="Neidio i'r eiliad hon">⏱ ${fmtTime(c.timestamp_seconds)}</span>`
+      : '';
+
+    return `<div class="c-card" id="comment-${c.id}">
+      <div class="c-card-top">
+        <div class="c-dot" style="background:${color}"></div>
+        <span style="font-size:11px;color:${color};font-weight:600">${catLabel}</span>
+        ${tsLabel}
+        <span class="c-role-badge ${c.role}">${c.role === 'teacher' ? t('teacher') : t('student')}</span>
+        ${canDelete ? `<button class="c-delete" onclick="deleteComment('${c.id}')">×</button>` : ''}
+      </div>
+      <div class="c-text">${esc(c.text)}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:6px">${esc(author)} · ${date}</div>
+    </div>`;
+  }).join('');
+}
+
+// ─── LANGUAGE ───
+function setLang(lang) {
+  currentLang = lang;
+  document.getElementById('lang-cy').classList.toggle('active', lang === 'cy');
+  document.getElementById('lang-en').classList.toggle('active', lang === 'en');
+  applyLang();
+  if (currentProfile) {
+    sb.from('profiles').update({ language: lang }).eq('id', currentUser.id);
+  }
+}
+
+function setAuthLang(lang) {
+  currentLang = lang;
+  document.getElementById('auth-lang-cy').classList.toggle('active', lang === 'cy');
+  document.getElementById('auth-lang-en').classList.toggle('active', lang === 'en');
+  applyAuthLang();
+}
+
+function applyAuthLang() {
+  document.getElementById('auth-title').textContent = t('welcome');
+  document.getElementById('auth-subtitle').textContent = t('subtitle');
+  document.getElementById('auth-btn-text').textContent = t('signin');
+}
+
+function applyLang() {
+  document.documentElement.lang = currentLang;
+  document.getElementById('lang-cy').classList.toggle('active', currentLang === 'cy');
+  document.getElementById('lang-en').classList.toggle('active', currentLang === 'en');
+  document.getElementById('sb-tagline').textContent = t('music_feedback');
+  document.getElementById('nav-home-text').textContent = t('home');
+  document.getElementById('sb-overview-label').textContent = t('overview');
+  document.getElementById('sb-classes-label').textContent = t('classes');
+  document.getElementById('nav-new-class-text').textContent = t('new_class');
+  document.getElementById('nav-join-text').textContent = t('join_class');
+  document.getElementById('setup-title').textContent = t('setup_title');
+  document.getElementById('setup-subtitle').textContent = t('setup_subtitle');
+  document.getElementById('role-teacher-name').textContent = t('role_teacher');
+  document.getElementById('role-teacher-desc').textContent = t('role_teacher_desc');
+  document.getElementById('role-student-name').textContent = t('role_student');
+  document.getElementById('role-student-desc').textContent = t('role_student_desc');
+  document.getElementById('setup-save-btn').textContent = t('save_continue');
+  document.getElementById('classes-title').textContent = t('classes');
+  document.getElementById('new-class-btn-text').textContent = t('new_class');
+  document.getElementById('add-video-btn-text').textContent = t('add_video');
+  document.getElementById('invite-label').textContent = t('invite_code');
+  document.getElementById('invite-hint').textContent = t('invite_hint');
+  document.getElementById('copy-btn-text').textContent = t('copy');
+  document.getElementById('tab-videos-text').textContent = t('videos_tab');
+  document.getElementById('tab-groups-text').textContent = t('groups_tab');
+  document.getElementById('tab-students-text').textContent = t('students_tab');
+  document.getElementById('back-to-classes').textContent = t('back_classes');
+  document.getElementById('player-back-text').textContent = t('back');
+  document.getElementById('join-title').textContent = t('join_title');
+  document.getElementById('join-subtitle').textContent = t('join_subtitle');
+  document.getElementById('join-box-label').textContent = t('join_label');
+  document.getElementById('join-btn').textContent = t('join_btn');
+  document.getElementById('comment-btn-text').textContent = t('comment_btn');
+  document.getElementById('popup-title').textContent = t('add_comment');
+  document.getElementById('comments-title').textContent = t('comments');
+  document.getElementById('cancel-text').textContent = t('cancel');
+  document.getElementById('save-comment-text').textContent = t('save_comment');
+  document.getElementById('modal-new-class-title').textContent = t('new_class_title');
+  document.getElementById('modal-new-class-subtitle').textContent = t('new_class_subtitle');
+  document.getElementById('label-class-name').textContent = t('class_name_label');
+  document.getElementById('label-class-desc').textContent = t('class_desc_label');
+  document.getElementById('modal-cancel').textContent = t('cancel');
+  document.getElementById('modal-create').textContent = t('create_class');
+  document.getElementById('modal-add-video-title').textContent = t('add_video_title');
+  document.getElementById('modal-add-video-subtitle').textContent = t('add_video_subtitle');
+  document.getElementById('label-student-select').textContent = t('student_label');
+  document.getElementById('label-video-title').textContent = t('video_title_label');
+  document.getElementById('modal-video-cancel').textContent = t('cancel');
+  document.getElementById('modal-video-save').textContent = t('save_video');
+  document.getElementById('th-name').textContent = t('th_name');
+  document.getElementById('th-email').textContent = t('th_email');
+  document.getElementById('th-joined').textContent = t('th_joined');
+  document.getElementById('th-videos').textContent = t('th_videos');
+  document.getElementById('comments-empty-text').textContent = t('comments_empty');
+  document.getElementById('videos-empty-title').textContent = t('no_videos');
+  document.getElementById('videos-empty-text').textContent = t('no_videos_text');
+  if (currentProfile) {
+    document.getElementById('sb-role').textContent = currentProfile.role === 'admin' ? 'Admin' : t(currentProfile.role === 'teacher' ? 'teacher' : 'student');
+  }
+}
+
+// ─── PANELS / SCREENS ───
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name)?.classList.add('active');
+}
+
+function showPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name)?.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('nav-' + name)?.classList.add('active');
+
+  if (name === 'classes') {
+    showClassList();
+    loadClassesGrid();
+  }
+  if (name === 'join') {
+    loadJoinedClasses();
+  }
+  if (name === 'admin') {
+    loadAdminPanel();
+  }
+}
+
+async function loadJoinedClasses() {
+  const { data } = await sb.from('class_members').select('classes(*)').eq('student_id', currentUser.id);
+  const classes = (data || []).map(d => d.classes).filter(Boolean);
+  const container = document.getElementById('joined-classes-list');
+
+  if (classes.length === 0) { container.innerHTML = ''; return; }
+
+  container.innerHTML = `
+    <div class="panel-subtitle" style="margin-bottom:16px">${t('classes')}</div>
+    <div class="card-grid">
+      ${classes.map(c => `
+        <div class="class-card" onclick="openClass('${c.id}')">
+          <div class="class-card-name">${esc(c.name)}</div>
+          <div class="class-card-meta">${c.description || ''}</div>
+        </div>`).join('')}
+    </div>`;
+}
+
+// ─── MODALS ───
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+function openNewClassModal() { openModal('new-class-modal'); setTimeout(() => document.getElementById('new-class-name').focus(), 100); }
+
+// ─── TOAST ───
+let toastTimer;
+function showToast(msg, duration = 2800) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), duration);
+}
+
+// ─── UTILS ───
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmt(s) {
+  if (!s || isNaN(s)) return '0:00';
+  const m = Math.floor(s/60), sec = String(Math.floor(s%60)).padStart(2,'0');
+  return `${m}:${sec}`;
+}
+
+function hideLoading() { document.getElementById('app-loading').style.display = 'none'; }
+
+// ─── KEYBOARD ───
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.code === 'KeyC') openCommentPopup();
+  if (e.code === 'Escape') {
+    closeCommentPopup();
+    document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('show'));
+  }
+});
+
+// Close modals on backdrop click
+document.querySelectorAll('.modal-overlay, .popup-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('show'); });
+});
+
+// ─── ADMIN ───
+let impersonating = null;
+
+function isAdmin() { return currentProfile?.role === 'admin'; }
+
+async function loadAdminPanel() {
+  await loadAdminStats();
+  await loadAdminUsers();
+}
+
+async function loadAdminStats() {
+  const [users, classes, videos, comments] = await Promise.all([
+    sb.from('profiles').select('id', { count: 'exact', head: true }),
+    sb.from('classes').select('id', { count: 'exact', head: true }),
+    sb.from('videos').select('id', { count: 'exact', head: true }),
+    sb.from('comments').select('id', { count: 'exact', head: true }),
+  ]);
+  document.getElementById('stat-users').textContent = users.count ?? '—';
+  document.getElementById('stat-classes').textContent = classes.count ?? '—';
+  document.getElementById('stat-videos').textContent = videos.count ?? '—';
+  document.getElementById('stat-comments').textContent = comments.count ?? '—';
+}
+
+async function loadAdminUsers() {
+  const { data: users } = await sb.from('profiles').select('*').order('created_at');
+  const tbody = document.getElementById('admin-users-tbody');
+  if (!users) return;
+
+  tbody.innerHTML = users.map(u => {
+    const roleColor = u.role === 'admin' ? 'var(--accent)' : u.role === 'teacher' ? 'var(--green)' : 'var(--blue)';
+    const roleLabel = u.role === 'admin' ? 'Admin' : u.role === 'teacher' ? t('teacher') : t('student');
+    const isMe = u.id === currentUser.id;
+    return `<tr>
+      <td style="font-weight:500">${esc(u.full_name || '—')} ${isMe ? '<span class="badge badge-yellow" style="font-size:10px">Chi</span>' : ''}</td>
+      <td style="color:var(--text-muted)">${esc(u.email)}</td>
+      <td><span style="font-size:12px;font-weight:600;color:${roleColor}">${roleLabel}</span></td>
+      <td style="color:var(--text-muted)">${new Date(u.created_at).toLocaleDateString(currentLang === 'cy' ? 'cy-GB' : 'en-GB')}</td>
+      <td>
+        <div style="display:flex;gap:6px;align-items:center">
+          ${!isMe ? `
+            <select onchange="changeUserRole('${u.id}', this.value)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer">
+              <option value="student" ${u.role==='student'?'selected':''}>Disgybl</option>
+              <option value="teacher" ${u.role==='teacher'?'selected':''}>Athro</option>
+              <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="startImpersonating('${u.id}','${esc(u.full_name||u.email)}','${esc(u.email)}','${u.role}')">👁</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}','${esc(u.full_name||u.email)}')">🗑</button>
+          ` : '<span style="font-size:11px;color:var(--text-dim)">—</span>'}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function changeUserRole(userId, newRole) {
+  const { error } = await sb.from('profiles').update({ role: newRole }).eq('id', userId);
+  if (error) { showToast('Error: ' + error.message); return; }
+  showToast('Rôl wedi\'i newid ✓');
+  await loadAdminUsers();
+  await loadAdminStats();
+}
+
+async function deleteUser(userId, name) {
+  if (!confirm(`Dileu ${name}? Bydd hyn yn tynnu eu holl ddata.`)) return;
+  await sb.from('profiles').delete().eq('id', userId);
+  showToast('Defnyddiwr wedi\'i ddileu');
+  await loadAdminUsers();
+  await loadAdminStats();
+}
+
+async function loadAdminClasses() {
+  const { data: classes } = await sb.from('classes')
+    .select('*, profiles!classes_teacher_id_fkey(full_name, email)')
+    .order('created_at', { ascending: false });
+
+  const grid = document.getElementById('admin-classes-grid');
+  if (!classes || classes.length === 0) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🏫</div><h3>Dim dosbarthiadau</h3></div>`;
+    return;
+  }
+
+  grid.innerHTML = classes.map(c => `
+    <div class="class-card">
+      <div class="class-card-name">${esc(c.name)}</div>
+      <div class="class-card-meta" style="margin-bottom:8px">👩‍🏫 ${esc(c.profiles?.full_name || c.profiles?.email || '—')}</div>
+      <div class="class-card-code">
+        <span style="font-size:11px;color:var(--text-muted)">${t('invite_code')}</span>
+        <span class="invite-code">${c.invite_code}</span>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="openClass('${c.id}')">Gweld →</button>
+        <button class="btn btn-danger btn-sm" onclick="adminDeleteClass('${c.id}','${esc(c.name)}')">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+async function adminDeleteClass(classId, name) {
+  if (!confirm(`Dileu dosbarth "${name}"? Bydd hyn yn tynnu'r holl fideos a sylwadau.`)) return;
+  await sb.from('classes').delete().eq('id', classId);
+  showToast('Dosbarth wedi\'i ddileu');
+  await loadAdminClasses();
+  await loadAdminStats();
+}
+
+async function inviteTeacher() {
+  const email = document.getElementById('invite-email').value.trim();
+  const name = document.getElementById('invite-name').value.trim();
+  if (!email) { showToast(t('fill_fields')); return; }
+
+  const { error } = await sb.auth.admin?.inviteUserByEmail(email);
+  const result = document.getElementById('invite-result');
+
+  // Supabase admin invite requires service role key — show manual instructions instead
+  result.innerHTML = `
+    <div style="background:rgba(62,207,142,0.1);border:1px solid rgba(62,207,142,0.3);border-radius:8px;padding:14px">
+      <div style="font-weight:600;color:var(--green);margin-bottom:6px">✓ Gwahoddiad wedi'i baratoi</div>
+      <div style="color:var(--text-muted);line-height:1.7">
+        Anfonwch y neges hon at <strong>${esc(email)}</strong>:<br><br>
+        <em>"Mae croeso i chi ymuno â NoteBack — yr offeryn adborth cerddoriaeth.<br>
+        Ewch i <strong>https://adborth-cerddoriaeth.netlify.app</strong> a mewngofnodwch â'r cyfeiriad e-bost hwn."</em>
+      </div>
+      <button class="btn btn-secondary btn-sm" style="margin-top:10px" onclick="copyInviteMessage('${esc(email)}')">📋 Copïo neges</button>
+    </div>`;
+
+  document.getElementById('invite-email').value = '';
+  document.getElementById('invite-name').value = '';
+}
+
+function copyInviteMessage(email) {
+  navigator.clipboard.writeText(`Mae croeso i chi ymuno â NoteBack — yr offeryn adborth cerddoriaeth. Ewch i https://adborth-cerddoriaeth.netlify.app a mewngofnodwch â Google gan ddefnyddio'r cyfeiriad e-bost hwn: ${email}`);
+  showToast(t('copied'));
+}
+
+function switchAdminTab(tab) {
+  ['users','classes','invite'].forEach(t => {
+    document.getElementById('admin-content-' + t).style.display = t === tab ? 'block' : 'none';
+    const btn = document.getElementById('admin-tab-' + t);
+    btn.style.color = t === tab ? 'var(--accent)' : 'var(--text-muted)';
+    btn.style.borderBottomColor = t === tab ? 'var(--accent)' : 'transparent';
+  });
+  if (tab === 'classes') loadAdminClasses();
+  if (tab === 'users') loadAdminUsers();
+}
+
+// ─── IMPERSONATE ───
+function startImpersonating(userId, name, email, role) {
+  impersonating = { userId, name, email, role };
+  document.getElementById('impersonate-name').textContent = name;
+  document.getElementById('impersonate-email').textContent = email;
+  document.getElementById('impersonate-role').textContent = role;
+  openModal('impersonate-modal');
+
+  // Show what this user sees by temporarily changing the profile view
+  const savedProfile = {...currentProfile};
+  currentProfile = { ...currentProfile, id: userId, role, full_name: name, email };
+  updateSidebar();
+  showPanel('home');
+  loadHomePanel();
+
+  // Store original for restoration
+  impersonating.savedProfile = savedProfile;
+}
+
+function stopImpersonating() {
+  if (!impersonating) return;
+  currentProfile = impersonating.savedProfile;
+  impersonating = null;
+  closeModal('impersonate-modal');
+  updateSidebar();
+  showPanel('admin');
+  loadAdminPanel();
+}
+
+// ─── GROUPS ───
+let currentGroup = null;
+
+async function loadGroups(classId) {
+  const { data: groups } = await sb.from('groups')
+    .select('*, group_members(count)')
+    .eq('class_id', classId)
+    .order('created_at');
+
+  const grid = document.getElementById('groups-grid');
+
+  if (!groups || groups.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state" style="grid-column:1/-1">
+        <div class="empty-icon">🎸</div>
+        <h3>${t('no_groups')}</h3>
+        <p>${t('no_groups_text')}</p>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = groups.map(g => `
+    <div class="class-card" onclick="openManageGroup('${g.id}')">
+      <div class="class-card-name">${esc(g.name)}</div>
+      <div class="class-card-meta">${g.description ? esc(g.description) : ''}</div>
+      <div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between">
+        <span class="badge badge-blue">${g.group_members?.[0]?.count || 0} ${t('members')}</span>
+        <span style="font-size:11px;color:var(--text-muted)">→ ${t('manage')}</span>
+      </div>
+    </div>`).join('');
+}
+
+function openNewGroupModal() {
+  openModal('new-group-modal');
+  setTimeout(() => document.getElementById('new-group-name').focus(), 100);
+}
+
+async function createGroup() {
+  const name = document.getElementById('new-group-name').value.trim();
+  const desc = document.getElementById('new-group-desc').value.trim();
+  if (!name || !currentClass) { showToast(t('fill_fields')); return; }
+
+  const { error } = await sb.from('groups').insert({
+    class_id: currentClass.id, name, description: desc || null
+  });
+
+  if (error) { showToast('Error: ' + error.message); return; }
+
+  closeModal('new-group-modal');
+  document.getElementById('new-group-name').value = '';
+  document.getElementById('new-group-desc').value = '';
+  showToast(t('group_created'));
+  await loadGroups(currentClass.id);
+}
+
+async function openManageGroup(groupId) {
+  const { data: group } = await sb.from('groups').select('*').eq('id', groupId).single();
+  currentGroup = group;
+
+  document.getElementById('manage-group-title').textContent = group.name;
+
+  // Load all class students for the add dropdown
+  const { data: members } = await sb.from('class_members')
+    .select('*, profiles(full_name, email)')
+    .eq('class_id', currentClass.id);
+
+  // Load current group members
+  const { data: groupMembers } = await sb.from('group_members')
+    .select('*, profiles(full_name, email)')
+    .eq('group_id', groupId);
+
+  const groupMemberIds = new Set((groupMembers || []).map(m => m.student_id));
+
+  // Populate add dropdown with students NOT already in group
+  const sel = document.getElementById('add-member-select');
+  const available = (members || []).filter(m => !groupMemberIds.has(m.student_id));
+  sel.innerHTML = available.length
+    ? available.map(m => `<option value="${m.student_id}">${esc(m.profiles?.full_name || m.profiles?.email)}</option>`).join('')
+    : `<option disabled>— ${t('all_added')} —</option>`;
+
+  // Render current members
+  const list = document.getElementById('current-members-list');
+  list.innerHTML = !groupMembers || groupMembers.length === 0
+    ? `<div style="color:var(--text-muted);font-size:13px;padding:8px 0">${t('no_members_yet')}</div>`
+    : groupMembers.map(m => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div>
+          <div style="font-size:13px;font-weight:500">${esc(m.profiles?.full_name || '—')}</div>
+          <div style="font-size:11px;color:var(--text-muted)">${esc(m.profiles?.email || '')}</div>
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="removeGroupMember('${m.id}','${groupId}')">✕</button>
+      </div>`).join('');
+
+  openModal('manage-group-modal');
+}
+
+async function addGroupMember() {
+  const studentId = document.getElementById('add-member-select').value;
+  if (!studentId || !currentGroup) return;
+
+  const { error } = await sb.from('group_members').insert({
+    group_id: currentGroup.id, student_id: studentId
+  });
+
+  if (error) { showToast('Error: ' + error.message); return; }
+  showToast(t('member_added'));
+  await openManageGroup(currentGroup.id);
+}
+
+async function removeGroupMember(memberId, groupId) {
+  await sb.from('group_members').delete().eq('id', memberId);
+  await openManageGroup(groupId);
+}
+
+async function deleteGroup() {
+  if (!currentGroup) return;
+  await sb.from('groups').delete().eq('id', currentGroup.id);
+  closeModal('manage-group-modal');
+  showToast(t('group_deleted'));
+  await loadGroups(currentClass.id);
+  currentGroup = null;
+}
+
+// ─── START ───
+init();
+</script>
+</body>
+</html>
