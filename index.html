@@ -1392,6 +1392,15 @@ async function init() {
 
   if (session) {
     currentUser = session.user;
+    const email = currentUser.email || '';
+    if (!email.endsWith('@ygcwmrhymni.net')) {
+      await sb.auth.signOut();
+      hideLoading();
+      showScreen('auth');
+      document.getElementById('auth-title').textContent = 'Mynediad wedi\'i wrthod';
+      document.getElementById('auth-subtitle').textContent = 'Dim ond cyfrifon @ygcwmrhymni.net sy\'n cael mynediad i NodNôl ar hyn o bryd.';
+      return;
+    }
     await loadProfile();
   } else {
     hideLoading();
@@ -1400,6 +1409,14 @@ async function init() {
 
   sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session) {
+      const email = session.user.email || '';
+      if (!email.endsWith('@ygcwmrhymni.net')) {
+        await sb.auth.signOut();
+        showScreen('auth');
+        document.getElementById('auth-title').textContent = 'Mynediad wedi\'i wrthod';
+        document.getElementById('auth-subtitle').textContent = 'Dim ond cyfrifon @ygcwmrhymni.net sy\'n cael mynediad i NodNôl ar hyn o bryd.';
+        return;
+      }
       currentUser = session.user;
       await loadProfile();
     } else if (event === 'SIGNED_OUT') {
