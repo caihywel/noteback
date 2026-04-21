@@ -2566,7 +2566,8 @@ function openNewGroupModal() {
 async function createGroup() {
   const name = document.getElementById('new-group-name').value.trim();
   const desc = document.getElementById('new-group-desc').value.trim();
-  if (!name || !currentClass) { showToast(t('fill_fields')); return; }
+  if (!name) { showToast(t('fill_fields')); return; }
+  if (!currentClass) { showToast('Agorwch ddosbarth yn gyntaf'); return; }
 
   const { error } = await sb.from('groups').insert({
     class_id: currentClass.id, name, description: desc || null
