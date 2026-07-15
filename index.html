@@ -1780,17 +1780,23 @@ async function joinClass() {
   const code = document.getElementById('join-code-input').value.trim().toUpperCase();
   if (!code) { showToast(t('fill_fields')); return; }
 
-  const { data: cls } = await sb.from('classes').select('*').eq('invite_code', code).single();
-  if (!cls) { showToast(t('invalid_code')); return; }
+  // Server-side join: looks up the code and adds membership in one step.
+  const { data, error } = await sb.rpc('join_class_by_code', { p_code: code });
 
-  const { error } = await sb.from('class_members').insert({ class_id: cls.id, student_id: currentUser.id });
-  if (error && !error.message.includes('duplicate')) { showToast('Error: ' + error.message); return; }
+  if (error) {
+    if (error.message.includes('INVALID_CODE')) { showToast(t('invalid_code')); }
+    else { showToast('Gwall: ' + error.message, 5000); }
+    return;
+  }
+
+  const cls = data && data[0];
+  if (!cls) { showToast(t('invalid_code')); return; }
 
   document.getElementById('join-code-input').value = '';
   showToast(t('joined_class'));
   await loadClassesNav();
   await loadHomePanel();
-  openClass(cls.id);
+  openClass(cls.class_id);
 }
 
 // ─── ADD VIDEO ───
