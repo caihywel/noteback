@@ -1008,7 +1008,7 @@
           <video id="video-el" playsinline preload="auto" style="flex:1;width:100%;object-fit:contain;background:#000;max-height:calc(100vh - 180px)"></video>
           <div class="video-controls">
             <div class="timeline-wrap">
-              <input type="range" id="timeline" value="0" step="0.01" min="0" max="100">
+              <input type="range" id="timeline" value="0" step="0.01" min="0" max="100" oninput="seekTimeline(this.value)">
               <div class="markers-layer" id="markers-layer"></div>
             </div>
             <div class="ctrl-row">
@@ -1903,7 +1903,7 @@ function setVideoType(type) {
 }
 
 async function openAddVideoModal() {
-  if (!currentClass) return;
+  if (!currentClass) { showToast('Agorwch ddosbarth yn gyntaf'); return; }
   setVideoType('individual');
   uploadedVideoUrl = null;
   document.getElementById('video-file-input').value = '';
@@ -1912,20 +1912,32 @@ async function openAddVideoModal() {
   document.getElementById('add-video-submit-btn').disabled = true;
   document.getElementById('add-video-submit-btn').style.opacity = '0.5';
 
-  const { data: members } = await sb.from('class_members')
+  // Open the modal first so the button always responds immediately;
+  // the student/group dropdowns then populate into the already-open dialog.
+  openModal('add-video-modal');
+
+  const { data: members, error: membersErr } = await sb.from('class_members')
     .select('*, profiles(full_name, email)').eq('class_id', currentClass.id);
   const studentSel = document.getElementById('video-student-select');
-  studentSel.innerHTML = (members || []).length
-    ? members.map(m => `<option value="${m.student_id}">${esc(m.profiles?.full_name || m.profiles?.email || m.student_id)}</option>`).join('')
-    : `<option disabled>— Dim disgyblion —</option>`;
+  if (membersErr) {
+    showToast('Gwall wrth lwytho disgyblion: ' + membersErr.message, 5000);
+    studentSel.innerHTML = `<option disabled>— Methwyd llwytho —</option>`;
+  } else {
+    studentSel.innerHTML = (members || []).length
+      ? members.map(m => `<option value="${m.student_id}">${esc(m.profiles?.full_name || m.profiles?.email || m.student_id)}</option>`).join('')
+      : `<option disabled>— Dim disgyblion —</option>`;
+  }
 
-  const { data: groups } = await sb.from('groups').select('*').eq('class_id', currentClass.id);
+  const { data: groups, error: groupsErr } = await sb.from('groups').select('*').eq('class_id', currentClass.id);
   const groupSel = document.getElementById('video-group-select');
-  groupSel.innerHTML = (groups || []).length
-    ? groups.map(g => `<option value="${g.id}">${esc(g.name)}</option>`).join('')
-    : `<option disabled>— Dim grwpiau —</option>`;
-
-  openModal('add-video-modal');
+  if (groupsErr) {
+    showToast('Gwall wrth lwytho grwpiau: ' + groupsErr.message, 5000);
+    groupSel.innerHTML = `<option disabled>— Methwyd llwytho —</option>`;
+  } else {
+    groupSel.innerHTML = (groups || []).length
+      ? groups.map(g => `<option value="${g.id}">${esc(g.name)}</option>`).join('')
+      : `<option disabled>— Dim grwpiau —</option>`;
+  }
 }
 
 async function addVideo() {

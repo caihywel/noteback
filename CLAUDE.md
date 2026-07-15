@@ -74,7 +74,7 @@ a buffer before the lesson, not at 8:58 for a 9am start. If a device shows a
 stale version: hard refresh — Ctrl+Shift+R (Windows) / Cmd+Shift+R (Mac).
 
 **Phase 2 watch-out — inline handlers will silently die under module scope.**
-`index.html` has **74 inline handler attributes** (`onclick`/`oninput`/`onchange`/
+`index.html` has **75 inline handler attributes** (`onclick`/`oninput`/`onchange`/
 drag) depending on **~50 global functions**. Those work today only because it's
 all one plain `<script>`. Move the JS into `<script type="module">` files and
 those functions stop being global, so every inline handler becomes a button that
@@ -82,7 +82,25 @@ does nothing — with no error. Plan: during the split, **bridge the functions o
 `window`** so behaviour stays byte-for-byte identical, then verify with (a) a
 static name-diff of handler targets vs. what's attached to `window`, and (b) a
 one-line console check that every expected function is defined. Do not modernise
-handlers to `addEventListener` in the same step as the split.
+handlers to `addEventListener` in the same step as the split. **Regenerate the
+handler/function lists from the current file each time — don't trust an old
+count. `seekTimeline` (added in Phase 1.5) is the newest name that must be in the
+bridge, and exactly the kind that gets forgotten.**
+
+**Phase 2 open bug — apostrophes / injection in `onclick` strings.** Many buttons
+are built by pasting data straight into an `onclick` (e.g. `removeStudentFromClass`,
+`startImpersonating`, `deleteUser`, `adminDeleteClass`). A value containing a
+single quote — a pupil or teacher called **O'Brien** — breaks that button, and in
+principle allows injection. **This is a KNOWN, still-OPEN hole, not a fixed one.**
+Note the trap we already fell into: HTML-escaping the quote to `&#39;` does **not**
+fix it, because the browser HTML-decodes the attribute back to `'` *before*
+compiling it as JavaScript, so the string still breaks. Two real fixes exist:
+1. **Event delegation** with `data-` attributes (stop putting data in `onclick` at
+   all) — **preferred**, because the affected buttons include destructive admin
+   actions and delegation removes the whole class of bug.
+2. **A JS-string escape** (backslash-escape the quote, e.g. `\'`), which *does*
+   survive HTML decoding. Lighter touch, but leaves the inline-handler pattern in
+   place. Recorded so we remember there was a choice; delegation is still the plan.
 
 ---
 
