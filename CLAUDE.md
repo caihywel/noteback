@@ -38,11 +38,69 @@ Teachers film student performances, upload them, and add **timestamped comments*
 
 **Previously on Netlify** — abandoned after hitting free-tier deploy limits. The old URL `adborth-cerddoriaeth.netlify.app` is dead. Don't reference it.
 
-### Deployment process (current, manual)
+### Deployment process (current, manual — while still one file)
 1. Get updated `index.html`
 2. Go to `github.com/caihywel/noteback` (**must be logged in** or the Add file button won't appear)
 3. **Add file → Upload files** → drag the file on → **Commit changes**
 4. Wait ~2 minutes, then refresh the live site
+
+### Deployment AFTER the Phase 2 split — and the no-build rule
+
+**Non-negotiable design rule: NO BUILD STEP, EVER.** The split uses native
+browser modules — plain `.js` and `.css` files the browser loads directly. The
+files Cai edits are exactly the files that get served; nothing is compiled,
+bundled or transformed. No Node, no npm, no `build` command, nothing to install
+on the school Windows PC or the home Mac. If any plan introduces a build step,
+that is a mistake — reject it. Cai must be able to deploy at 8am before a lesson
+with nothing but a browser.
+
+**Deploying multiple files — the correct drag:**
+1. Keep the whole project as one folder on the computer (the single source of truth).
+2. Drop the updated files into that folder, replacing the old ones.
+3. Go to `github.com/caihywel/noteback` (logged in).
+4. **Add file → Upload files.**
+5. **Open the folder, select all the files INSIDE it, and drag the files onto the page.**
+   ⚠️ Do **NOT** drag the folder itself. GitHub preserves folder structure, so
+   dragging the `noteback` folder would create `noteback/index.html` in a
+   subdirectory, and GitHub Pages (which serves from the repo **root**) would 404.
+   Always drag the loose files, never the containing folder.
+6. **Commit changes.** Wait ~2 minutes, refresh the live site.
+   Tip: drag **all** the files every time, even if only one changed — it's
+   foolproof against uploading a mismatched set.
+
+**One new wrinkle after the split: browser caching.** Separate `.js`/`.css`
+files can be briefly cached (~10 min on GitHub Pages) after a deploy. Deploy with
+a buffer before the lesson, not at 8:58 for a 9am start. If a device shows a
+stale version: hard refresh — Ctrl+Shift+R (Windows) / Cmd+Shift+R (Mac).
+
+**Phase 2 watch-out — inline handlers will silently die under module scope.**
+`index.html` has **75 inline handler attributes** (`onclick`/`oninput`/`onchange`/
+drag) depending on **~50 global functions**. Those work today only because it's
+all one plain `<script>`. Move the JS into `<script type="module">` files and
+those functions stop being global, so every inline handler becomes a button that
+does nothing — with no error. Plan: during the split, **bridge the functions onto
+`window`** so behaviour stays byte-for-byte identical, then verify with (a) a
+static name-diff of handler targets vs. what's attached to `window`, and (b) a
+one-line console check that every expected function is defined. Do not modernise
+handlers to `addEventListener` in the same step as the split. **Regenerate the
+handler/function lists from the current file each time — don't trust an old
+count. `seekTimeline` (added in Phase 1.5) is the newest name that must be in the
+bridge, and exactly the kind that gets forgotten.**
+
+**Phase 2 open bug — apostrophes / injection in `onclick` strings.** Many buttons
+are built by pasting data straight into an `onclick` (e.g. `removeStudentFromClass`,
+`startImpersonating`, `deleteUser`, `adminDeleteClass`). A value containing a
+single quote — a pupil or teacher called **O'Brien** — breaks that button, and in
+principle allows injection. **This is a KNOWN, still-OPEN hole, not a fixed one.**
+Note the trap we already fell into: HTML-escaping the quote to `&#39;` does **not**
+fix it, because the browser HTML-decodes the attribute back to `'` *before*
+compiling it as JavaScript, so the string still breaks. Two real fixes exist:
+1. **Event delegation** with `data-` attributes (stop putting data in `onclick` at
+   all) — **preferred**, because the affected buttons include destructive admin
+   actions and delegation removes the whole class of bug.
+2. **A JS-string escape** (backslash-escape the quote, e.g. `\'`), which *does*
+   survive HTML decoding. Lighter touch, but leaves the inline-handler pattern in
+   place. Recorded so we remember there was a choice; delegation is still the plan.
 
 ---
 
