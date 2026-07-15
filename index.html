@@ -1392,13 +1392,12 @@ async function init() {
 
   if (session) {
     currentUser = session.user;
-    const email = currentUser.email || '';
-    if (!email.endsWith('@ygcwmrhymni.net')) {
+    if (!isAllowedEmail(currentUser.email)) {
       await sb.auth.signOut();
       hideLoading();
       showScreen('auth');
       document.getElementById('auth-title').textContent = 'Mynediad wedi\'i wrthod';
-      document.getElementById('auth-subtitle').textContent = 'Dim ond cyfrifon @ygcwmrhymni.net sy\'n cael mynediad i NodNôl ar hyn o bryd.';
+      document.getElementById('auth-subtitle').textContent = 'Dim ond cyfrifon ysgol Cwm Rhymni sy\'n cael mynediad i NodNôl ar hyn o bryd.';
       return;
     }
     await loadProfile();
@@ -1409,12 +1408,11 @@ async function init() {
 
   sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session) {
-      const email = session.user.email || '';
-      if (!email.endsWith('@ygcwmrhymni.net')) {
+      if (!isAllowedEmail(session.user.email)) {
         await sb.auth.signOut();
         showScreen('auth');
         document.getElementById('auth-title').textContent = 'Mynediad wedi\'i wrthod';
-        document.getElementById('auth-subtitle').textContent = 'Dim ond cyfrifon @ygcwmrhymni.net sy\'n cael mynediad i NodNôl ar hyn o bryd.';
+        document.getElementById('auth-subtitle').textContent = 'Dim ond cyfrifon ysgol Cwm Rhymni sy\'n cael mynediad i NodNôl ar hyn o bryd.';
         return;
       }
       currentUser = session.user;
@@ -1424,6 +1422,18 @@ async function init() {
       showScreen('auth');
     }
   });
+}
+
+// ─── ALLOWED SCHOOL DOMAINS ───
+// Add or remove domains here to control who can access NodNôl.
+const ALLOWED_DOMAINS = [
+  '@ygcwmrhymni.net',        // pupils and most staff
+  '@staff.ygcwmrhymni.net'   // staff subdomain
+];
+
+function isAllowedEmail(email) {
+  const e = (email || '').trim().toLowerCase();
+  return ALLOWED_DOMAINS.some(d => e.endsWith(d));
 }
 
 async function loadProfile() {
