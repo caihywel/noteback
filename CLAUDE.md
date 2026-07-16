@@ -38,40 +38,45 @@ Teachers film student performances, upload them, and add **timestamped comments*
 
 **Previously on Netlify** — abandoned after hitting free-tier deploy limits. The old URL `adborth-cerddoriaeth.netlify.app` is dead. Don't reference it.
 
-### Deployment process (current, manual — while still one file)
-1. Get updated `index.html`
-2. Go to `github.com/caihywel/noteback` (**must be logged in** or the Add file button won't appear)
-3. **Add file → Upload files** → drag the file on → **Commit changes**
-4. Wait ~2 minutes, then refresh the live site
+### Deployment & source of truth (read before touching the live site)
 
-### Deployment AFTER the Phase 2 split — and the no-build rule
+**The GitHub repo is the single source of truth — NOT any folder on Cai's
+computer.** Since the Phase 2 split began, the repo has files a stale local copy
+does **not** (`styles.css`, and soon `app.js` + feature modules), and its
+`index.html` has moved on. **Never treat a local folder as authoritative.** If an
+old local folder were ever dragged up, it would wipe the split and resurrect the
+dead monolithic `index.html`.
 
-**Non-negotiable design rule: NO BUILD STEP, EVER.** The split uses native
-browser modules — plain `.js` and `.css` files the browser loads directly. The
-files Cai edits are exactly the files that get served; nothing is compiled,
-bundled or transformed. No Node, no npm, no `build` command, nothing to install
-on the school Windows PC or the home Mac. If any plan introduces a build step,
-that is a mistake — reject it. Cai must be able to deploy at 8am before a lesson
-with nothing but a browser.
+There are two deployment paths. Always know which one you're on.
 
-**Deploying multiple files — the correct drag:**
-1. Keep the whole project as one folder on the computer (the single source of truth).
-2. Drop the updated files into that folder, replacing the old ones.
-3. Go to `github.com/caihywel/noteback` (logged in).
-4. **Add file → Upload files.**
-5. **Open the folder, select all the files INSIDE it, and drag the files onto the page.**
-   ⚠️ Do **NOT** drag the folder itself. GitHub preserves folder structure, so
-   dragging the `noteback` folder would create `noteback/index.html` in a
-   subdirectory, and GitHub Pages (which serves from the repo **root**) would 404.
-   Always drag the loose files, never the containing folder.
-6. **Commit changes.** Wait ~2 minutes, refresh the live site.
-   Tip: drag **all** the files every time, even if only one changed — it's
-   foolproof against uploading a mismatched set.
+**Path A — the normal Phase 2 flow (Claude edits): merge = deploy.**
+Claude commits to a branch → a PR is opened → **Cai merges the PR on GitHub.**
+Merging **is** the deploy: GitHub Pages rebuilds automatically (~2 min), then
+refresh the live site. **Cai uploads nothing and drags nothing** — the files are
+already in the repo on the branch. This is what Phase 2 runs on.
 
-**One new wrinkle after the split: browser caching.** Separate `.js`/`.css`
-files can be briefly cached (~10 min on GitHub Pages) after a deploy. Deploy with
-a buffer before the lesson, not at 8:58 for a 9am start. If a device shows a
-stale version: hard refresh — Ctrl+Shift+R (Windows) / Cmd+Shift+R (Mac).
+**Path B — hand-editing without Claude (emergency / one-off only).** The ordering
+is strict, because the repo, not the laptop, is the truth:
+1. **Download the CURRENT files from GitHub first** — never start from an old
+   local copy. Open the repo and take the live version of each file you'll edit.
+2. Edit those downloaded files.
+3. `github.com/caihywel/noteback` (logged in) → **Add file → Upload files.**
+4. **Select the files themselves and drag the *files* onto the page — NOT the
+   containing folder.** GitHub keeps folder structure, so dragging a folder would
+   create `noteback/index.html` in a subdirectory and Pages (serving from the repo
+   **root**) would 404. Drag the loose files.
+5. **Commit changes.** ~2 min, then refresh. Upload every file the change touches,
+   together, so the set never mismatches.
+
+**No build step, ever** (both paths). Native browser modules — plain `.js`/`.css`
+the browser loads directly. The files in the repo are exactly what gets served;
+nothing is compiled, bundled or transformed. No Node, no npm, no `build`. If any
+plan introduces a build step, reject it. Deploy at 8am with nothing but a browser.
+
+**Browser caching after a deploy.** Separate `.js`/`.css` files can be briefly
+cached (~10 min on GitHub Pages). Deploy with a buffer before the lesson, not at
+8:58 for a 9am start. Stale device: hard refresh — Ctrl+Shift+R (Windows) /
+Cmd+Shift+R (Mac).
 
 **Phase 2 watch-out — inline handlers will silently die under module scope.**
 `index.html` has **75 inline handler attributes** (`onclick`/`oninput`/`onchange`/
