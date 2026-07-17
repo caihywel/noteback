@@ -78,6 +78,26 @@ cached (~10 min on GitHub Pages). Deploy with a buffer before the lesson, not at
 8:58 for a 9am start. Stale device: hard refresh — Ctrl+Shift+R (Windows) /
 Cmd+Shift+R (Mac).
 
+**Verify a no-behaviour-change step by the MECHANISM, not the look.** Steps meant
+to change nothing visible (extracting CSS/JS to a file, and similar) look
+pixel-identical whether they deployed correctly or *never ran at all* — so "it
+still looks right" proves nothing. This already bit us once: a step was believed
+merged and verified when it had never landed, because the old version looked the
+same. After merging such a step, confirm the file is genuinely being served:
+- **CSS extraction:** open `caihywel.github.io/noteback/styles.css` — it must load
+  the CSS, not 404 — and view-source must show `<link rel="stylesheet" href="styles.css">`.
+- **JS extraction:** open `caihywel.github.io/noteback/app.js` — it must load, not
+  404 — and view-source must show `<script src="app.js">` with **no inline
+  `<script>` body left**.
+Only then is the step actually deployed. Build this check into every
+no-behaviour-change step.
+
+**Branch/PR naming rule.** Refer to branches by their **branch name, never by a PR
+number**, until GitHub has actually assigned that number. GitHub numbers PRs in
+creation order, which need not match the order we plan to merge — that mismatch
+once caused the tooling PR (which GitHub numbered #3) to be merged when "PR #3"
+was meant to be a different branch, so the intended step silently never landed.
+
 **Phase 2 watch-out — inline handlers will silently die under module scope.**
 `index.html` has **75 inline handler attributes** (`onclick`/`oninput`/`onchange`/
 drag) depending on **~50 global functions**. Those work today only because it's
