@@ -38,40 +38,65 @@ Teachers film student performances, upload them, and add **timestamped comments*
 
 **Previously on Netlify** — abandoned after hitting free-tier deploy limits. The old URL `adborth-cerddoriaeth.netlify.app` is dead. Don't reference it.
 
-### Deployment process (current, manual — while still one file)
-1. Get updated `index.html`
-2. Go to `github.com/caihywel/noteback` (**must be logged in** or the Add file button won't appear)
-3. **Add file → Upload files** → drag the file on → **Commit changes**
-4. Wait ~2 minutes, then refresh the live site
+### Deployment & source of truth (read before touching the live site)
 
-### Deployment AFTER the Phase 2 split — and the no-build rule
+**The GitHub repo is the single source of truth — NOT any folder on Cai's
+computer.** Since the Phase 2 split began, the repo has files a stale local copy
+does **not** (`styles.css`, and soon `app.js` + feature modules), and its
+`index.html` has moved on. **Never treat a local folder as authoritative.** If an
+old local folder were ever dragged up, it would wipe the split and resurrect the
+dead monolithic `index.html`.
 
-**Non-negotiable design rule: NO BUILD STEP, EVER.** The split uses native
-browser modules — plain `.js` and `.css` files the browser loads directly. The
-files Cai edits are exactly the files that get served; nothing is compiled,
-bundled or transformed. No Node, no npm, no `build` command, nothing to install
-on the school Windows PC or the home Mac. If any plan introduces a build step,
-that is a mistake — reject it. Cai must be able to deploy at 8am before a lesson
-with nothing but a browser.
+There are two deployment paths. Always know which one you're on.
 
-**Deploying multiple files — the correct drag:**
-1. Keep the whole project as one folder on the computer (the single source of truth).
-2. Drop the updated files into that folder, replacing the old ones.
-3. Go to `github.com/caihywel/noteback` (logged in).
-4. **Add file → Upload files.**
-5. **Open the folder, select all the files INSIDE it, and drag the files onto the page.**
-   ⚠️ Do **NOT** drag the folder itself. GitHub preserves folder structure, so
-   dragging the `noteback` folder would create `noteback/index.html` in a
-   subdirectory, and GitHub Pages (which serves from the repo **root**) would 404.
-   Always drag the loose files, never the containing folder.
-6. **Commit changes.** Wait ~2 minutes, refresh the live site.
-   Tip: drag **all** the files every time, even if only one changed — it's
-   foolproof against uploading a mismatched set.
+**Path A — the normal Phase 2 flow (Claude edits): merge = deploy.**
+Claude commits to a branch → a PR is opened → **Cai merges the PR on GitHub.**
+Merging **is** the deploy: GitHub Pages rebuilds automatically (~2 min), then
+refresh the live site. **Cai uploads nothing and drags nothing** — the files are
+already in the repo on the branch. This is what Phase 2 runs on.
 
-**One new wrinkle after the split: browser caching.** Separate `.js`/`.css`
-files can be briefly cached (~10 min on GitHub Pages) after a deploy. Deploy with
-a buffer before the lesson, not at 8:58 for a 9am start. If a device shows a
-stale version: hard refresh — Ctrl+Shift+R (Windows) / Cmd+Shift+R (Mac).
+**Path B — hand-editing without Claude (emergency / one-off only).** The ordering
+is strict, because the repo, not the laptop, is the truth:
+1. **Download the CURRENT files from GitHub first** — never start from an old
+   local copy. Open the repo and take the live version of each file you'll edit.
+2. Edit those downloaded files.
+3. `github.com/caihywel/noteback` (logged in) → **Add file → Upload files.**
+4. **Select the files themselves and drag the *files* onto the page — NOT the
+   containing folder.** GitHub keeps folder structure, so dragging a folder would
+   create `noteback/index.html` in a subdirectory and Pages (serving from the repo
+   **root**) would 404. Drag the loose files.
+5. **Commit changes.** ~2 min, then refresh. Upload every file the change touches,
+   together, so the set never mismatches.
+
+**No build step, ever** (both paths). Native browser modules — plain `.js`/`.css`
+the browser loads directly. The files in the repo are exactly what gets served;
+nothing is compiled, bundled or transformed. No Node, no npm, no `build`. If any
+plan introduces a build step, reject it. Deploy at 8am with nothing but a browser.
+
+**Browser caching after a deploy.** Separate `.js`/`.css` files can be briefly
+cached (~10 min on GitHub Pages). Deploy with a buffer before the lesson, not at
+8:58 for a 9am start. Stale device: hard refresh — Ctrl+Shift+R (Windows) /
+Cmd+Shift+R (Mac).
+
+**Verify a no-behaviour-change step by the MECHANISM, not the look.** Steps meant
+to change nothing visible (extracting CSS/JS to a file, and similar) look
+pixel-identical whether they deployed correctly or *never ran at all* — so "it
+still looks right" proves nothing. This already bit us once: a step was believed
+merged and verified when it had never landed, because the old version looked the
+same. After merging such a step, confirm the file is genuinely being served:
+- **CSS extraction:** open `caihywel.github.io/noteback/styles.css` — it must load
+  the CSS, not 404 — and view-source must show `<link rel="stylesheet" href="styles.css">`.
+- **JS extraction:** open `caihywel.github.io/noteback/app.js` — it must load, not
+  404 — and view-source must show `<script src="app.js">` with **no inline
+  `<script>` body left**.
+Only then is the step actually deployed. Build this check into every
+no-behaviour-change step.
+
+**Branch/PR naming rule.** Refer to branches by their **branch name, never by a PR
+number**, until GitHub has actually assigned that number. GitHub numbers PRs in
+creation order, which need not match the order we plan to merge — that mismatch
+once caused the tooling PR (which GitHub numbered #3) to be merged when "PR #3"
+was meant to be a different branch, so the intended step silently never landed.
 
 **Phase 2 watch-out — inline handlers will silently die under module scope.**
 `index.html` has **75 inline handler attributes** (`onclick`/`oninput`/`onchange`/
@@ -165,7 +190,8 @@ Verified July 2026: stranger sees nothing → pupil joins → admin comments →
 - **`.MOV` files don't play on Windows laptops.** Apple devices fine. Need automatic transcoding to MP4 (Cloudinary can do this).
 - **100MB upload limit** — Cloudinary free tier. Students recording at 1080p regularly exceed it. Advise 720p, or compress via HandBrake / Clideo / Photos app export.
 - ~~Join-class code silently fails first attempt~~ — likely fixed July 2026. The join is now a single atomic `join_class_by_code` RPC rather than two separate round-trips that could race. Watch to confirm.
-- **Student-side reports (from homework task):** some can't watch their video, some can't add comments, some can't see comments. Mixed devices at home (Chromebook/iPad/Windows/Mac). Comments *are* saving correctly in the database — confirmed by SQL query — so this is a client-side viewing issue. Was gathering student screenshots to diagnose.
+- **Student-side reports (from homework task):** some can't watch their video, some can't add comments, some can't see comments. Mixed devices at home (Chromebook/iPad/Windows/Mac). Comments *are* saving correctly in the database — confirmed by SQL query. **Two live hypotheses, not yet narrowed:** (A) comments *are* fetched but not visible — layout/cache; the player's comments column is a fixed 280–320px panel in a horizontal flex row with `overflow:hidden` and no mobile stacking, so on phones/portrait tablets it's clipped off-screen (explains the narrow-screen subset only, NOT the Chromebook/Windows-laptop reports); (B) comments are *not* fetched — the pupil's browser gets zero rows for that video (a membership/visibility or auth-state issue), even though the rows exist when queried as admin. Do **not** assume "client-side" — (B) is server-side and still open.
+  **BLOCKED until September** — needs an affected pupil, on the device where it fails, running this in the browser console on the live site: `(await sb.from('comments').select('*').eq('video_id','THE-VIDEO-ID')).data`. Rows back → it's (A), layout/cache. `[]` or error → it's (B), visibility. That one test splits the two; nothing conclusive before then.
 - **Welsh/English flag emojis show as black squares on Windows.** Not our bug — Windows doesn't render those flag emojis. Left as-is deliberately.
 - **Supabase free tier pauses the project after ~7 days of inactivity.** Happened over half term; site showed an endless "Llwytho..." spinner. Fix: supabase.com → project → **Restore**. Decided to stay on free tier and unpause manually.
 
